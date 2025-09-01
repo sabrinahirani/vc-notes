@@ -117,6 +117,8 @@ so the protocol is HVZK.
 
 \subsection{SNARKs}
 
+TODO write what a snark is
+
 \begin{definition}[Circuit Satisfiability]
 Let $C: \{0,1\}^n \to \{0,1\}^m$ be a Boolean circuit. A \emph{satisfying assignment} for $C$ is an input $w \in \{0,1\}^n$ such that
 $
@@ -959,18 +961,512 @@ The verifier’s work is logarithmic in the circuit size:
 Commitments and openings are of constant size (a few group elements under KZG), and the verifier’s checks reduce to a constant number of pairing evaluations. Thus the proof is succinct: verifier time is polylogarithmic in $n$, while the proof size and verification cost are independent of the circuit size.
 
 
-% \subsection{Transparent SNARKs \& STARKs}
+\subsection{Transparent SNARKs \& STARKs}
 
-% \subsubsection{GKR Protocol}
+TODO write somethings
 
-% \subsubsection{Spartan}
+\subsubsection{The GKR Protocol}
 
-% \subsubsection{STARKs}
+\paragraph{Problem Definition.} 
+We want an efficient interactive proof for the evaluation of an arithmetic circuit. 
+Let $C$ be a layered arithmetic circuit of depth $d$ over a finite field $\mathbb{F}$. 
+The circuit consists of addition and multiplication gates. The public input is $x$, and the prover wishes to convince the verifier that $C(x) = y$. 
+The GKR protocol achieves polylogarithmic verifier work and communication, even for circuits of size $S = \mathrm{poly}(n)$.
 
-% \subsubsection*{Example: Aurora}
+\myspace
 
-% \subsection{Recursive SNARKs}
+\begin{protocol}
+\begin{enumerate}
+  \item \textbf{Encoding Gate Values:} 
+  For each layer $\ell$ of the circuit, let $V_\ell : \{0,1\}^{n_\ell} \to \mathbb{F}$ map each gate index $u$ to its output value. 
+  Define the multilinear extension $\tilde{V}_\ell : \mathbb{F}^{n_\ell} \to \mathbb{F}$ that agrees with $V_\ell$ on Boolean inputs.
 
-% \subsubsection{Halo / Halo2}
+  \item \textbf{Layer Consistency Checks:} 
+  For every layer $\ell$, the prover claims a value $\tilde{V}_\ell(r_\ell)$ at a verifier-chosen random point $r_\ell \in \mathbb{F}^{n_\ell}$. 
+  To check this claim, the prover and verifier run the \emph{sum-check protocol} on a polynomial encoding the wiring relation between layer $\ell$ and layer $\ell-1$ (i.e., that each gate is either a sum or product of its inputs). 
+  This ensures that the claimed values in layer $\ell$ are consistent with those in layer $\ell-1$.
 
-% \subsubsection{Nova / SuperNova}
+  \item \textbf{Recursive Reduction:} 
+  Each sum-check reduces the task of verifying all gates in layer $\ell$ to verifying a single random evaluation of $\tilde{V}_{\ell-1}$. 
+  Repeating this for every layer, the verifier ultimately reduces correctness of the entire circuit to a check at the input layer.
+
+  \item \textbf{Final Check:} 
+  At the input layer, gate values are simply the public input $x$, which the verifier can evaluate directly. 
+  If every consistency check passes, the verifier accepts.
+\end{enumerate}
+\end{protocol}
+
+\myspace
+
+\paragraph{Example (Toy Circuit).}
+Consider a circuit $C(x_1,x_2)$ with three layers:
+\[
+z_1 = x_1,\quad z_2 = x_2,\quad z_3 = z_1 + z_2,\quad z_4 = z_3 \cdot z_1.
+\]
+The prover claims that $C(x_1,x_2) = y$.
+
+\begin{itemize}
+  \item \textbf{Layer 2 (Output Layer).} 
+  The prover encodes $\{z_3,z_4\}$ as $\tilde{V}_2$ and the verifier picks $r_2 \in \mathbb{F}^2$. 
+  They run a sum-check to verify $\tilde{V}_2(r_2)$ is consistent with $\tilde{V}_1$ (the previous layer).
+
+  \item \textbf{Layer 1.} 
+  The verifier now checks $\tilde{V}_1(r_1)$ for a random $r_1 \in \mathbb{F}^2$, again via sum-check, reducing the claim to the inputs.
+
+  \item \textbf{Layer 0 (Inputs).} 
+  The verifier evaluates $\tilde{V}_0$ directly, since it is just $(x_1,x_2)$, which are public inputs.
+\end{itemize}
+
+If all checks succeed, the verifier is convinced that the claimed output $y$ equals the true evaluation $C(x_1,x_2)$.
+
+
+\paragraph{Completeness.}
+If the prover is honest and $y = C(x)$, all polynomial identities hold, and the verifier always accepts.
+
+\paragraph{Soundness.}
+If the prover cheats (e.g., on the claimed output $y$), at some layer they must send a polynomial inconsistent with the true relation. 
+By the Schwartz–Zippel lemma, the probability the verifier’s random check passes is at most $\deg/|\mathbb{F}|$. 
+Independent repetition makes the soundness error negligible.
+
+\paragraph{Efficiency.}
+In terms of efficiency, the verifier performs only $\mathrm{polylog}(S)$ work overall: in each round it evaluates a small number of polynomials and chooses fresh randomness, independent of circuit size. 
+The prover runs in $O(S \log S)$ time, dominated by evaluating multilinear extensions and preparing sum-check messages. 
+The protocol thus achieves polylogarithmic verifier complexity with only logarithmic communication per layer, while preserving soundness.
+
+\paragraph{Remarks.}
+The GKR protocol generalizes the sum-check method to arbitrary arithmetic circuits. 
+The verifier runs in $\mathrm{polylog}(S)$ time, independent of circuit size, while the prover runs in $O(S \log S)$. 
+This protocol was one of the first practically efficient interactive proofs for general computation and forms the foundation for many modern SNARK and STARK constructions.
+
+\subsubsection{Spartan}
+
+Spartan \cite{setty2020spartan} is a SNARK construction that avoids pairings and instead builds on 
+low-degree polynomial commitments (e.g., via KZG or discrete-log-based commitments) combined with 
+sum-check style protocols.  
+Its key advantages are transparent setup (in some variants), flexible proof composition, 
+and efficient verification that scales polylogarithmically in the circuit size.  
+Unlike Groth16, Spartan proofs are somewhat larger, but the protocol is pairing-free 
+and more amenable to transparent setups.
+
+\subsubsection*{Arithmetization}
+
+\paragraph{R1CS.}
+Like Groth16, Spartan begins from a Rank-1 Constraint System (R1CS) representation of the computation:  
+\[
+\langle \mathbf{a}_i, \mathbf{z} \rangle \cdot 
+\langle \mathbf{b}_i, \mathbf{z} \rangle = 
+\langle \mathbf{c}_i, \mathbf{z} \rangle \quad \forall i \in [m].
+\]
+
+\paragraph{Polynomial Encoding.}
+Instead of translating R1CS into a Quadratic Arithmetic Program (QAP), Spartan encodes all constraints 
+into a single polynomial identity:  
+\[
+E(X) \;=\; A(X) \cdot B(X) - C(X),
+\]
+where $A(X),B(X),C(X)$ are multilinear extensions of the R1CS relations.  
+Correctness requires that $E(X)$ evaluates to zero on the Boolean hypercube $\{0,1\}^n$, 
+ensuring that every constraint is satisfied.
+
+This formulation makes Spartan compatible with the sum-check protocol and polynomial commitments:  
+checking satisfiability reduces to proving that $E(X)$ vanishes on the Boolean hypercube.
+
+\subsubsection*{Protocol Intuition}
+
+Spartan can be viewed as embedding the GKR/sum-check philosophy inside a polynomial commitment framework:  
+
+\begin{enumerate}
+  \item The prover commits to the multilinear extensions of the witness and constraint polynomials.
+  \item Using the sum-check protocol, prover and verifier reduce the claim “$E(X)=0$ for all $X\in\{0,1\}^n$”  
+        to checking a small number of random evaluations.
+  \item The polynomial commitment scheme lets the prover open these evaluations succinctly and verifiably.
+\end{enumerate}
+
+Thus, the verifier is convinced of circuit satisfiability without ever examining the entire witness or constraint set.
+
+\subsubsection*{Setup}
+
+Spartan admits different variants depending on the commitment scheme:
+
+\begin{itemize}
+  \item \textbf{Spartan with KZG:} Uses pairing-based KZG commitments. Requires a trusted setup but yields short proofs.
+  \item \textbf{Spartan with Discrete-Log Commitments:} Uses Pedersen-style commitments in groups of unknown order. This version is transparent but less efficient.
+  \item \textbf{Compressed Spartan:} Optimizes proof size using recursive compression techniques.
+\end{itemize}
+
+In all variants, the setup produces commitment keys for a polynomial commitment scheme.  
+Unlike Groth16, the setup is not circuit-specific: the same keys can be reused across many circuits.
+
+\myspace
+
+\begin{protocol}[Spartan (high-level)]
+Let $C$ be a circuit with R1CS instance $(A,B,C)$ and variables $\mathbf{z}$.
+
+\begin{enumerate}
+  \item \textbf{Setup:}  
+  Generate public parameters $(\mathsf{ck},\mathsf{vk})$ for a polynomial commitment scheme 
+  (e.g., KZG, Pedersen, or others).  
+  These keys are universal and reusable across circuits.
+
+  \item \textbf{Proving:}  
+  \begin{itemize}
+    \item Commit to the witness vector $\mathbf{z}$ and its polynomial encodings using $\mathsf{ck}$.
+    \item Engage in a sum-check protocol with the verifier to prove that the constraint polynomial 
+          $E(X) = A(X)\cdot B(X) - C(X)$ vanishes on the hypercube $\{0,1\}^n$.
+    \item Use the commitment scheme to open the required polynomial evaluations at verifier-chosen points.
+    \item The proof consists of the sum-check transcript together with the commitment openings.
+  \end{itemize}
+
+  \item \textbf{Verification:}  
+  The verifier:
+  \begin{itemize}
+    \item Checks the consistency of the sum-check transcript.
+    \item Verifies polynomial evaluations against the commitments using $\mathsf{vk}$.
+    \item Accepts if all checks succeed, which implies that the R1CS constraints are satisfied.
+  \end{itemize}
+\end{enumerate}
+\end{protocol}
+
+\myspace
+
+\paragraph{Completeness.}
+If the prover follows the protocol honestly with a valid witness $\mathbf{z}$ satisfying the R1CS constraints, 
+then the constraint polynomial $E(X) = A(X)\cdot B(X) - C(X)$ vanishes on the Boolean hypercube $\{0,1\}^n$. 
+The sum-check protocol ensures that this global condition is correctly reduced to a handful of random point evaluations, 
+and the polynomial commitment openings check out against the committed witness. 
+Hence, the verifier always accepts.
+
+\paragraph{Soundness.}
+Suppose the prover attempts to convince the verifier of a false statement, e.g., by committing to an invalid witness. 
+Then the claimed constraint polynomial $E(X)$ is nonzero on some fraction of the Boolean hypercube. 
+During sum-check, this discrepancy manifests as a disagreement between the true polynomial and the prover’s messages. 
+By the Schwartz–Zippel lemma, the probability that a cheating prover passes the verifier’s random checks is at most $\deg/|\mathbb{F}|$, 
+where $\deg$ is the polynomial degree (linear in circuit depth). 
+Thus, the soundness error is negligible in the field size. 
+Moreover, security of the polynomial commitment scheme ensures the prover cannot equivocate across openings.
+
+\paragraph{Zero-Knowledge.}
+The base Spartan protocol is not zero-knowledge, as polynomial evaluations could leak information about the witness. 
+However, Setty \cite{setty2020spartan} describes a \emph{zero-knowledge compiler} for Spartan that randomizes witness encodings 
+and masks sum-check messages with blinding polynomials. 
+This ensures that the verifier learns nothing beyond the validity of the computation. 
+In practice, the zero-knowledge variant incurs only a modest overhead in prover time and proof size.
+
+\paragraph{Succinctness.}
+Spartan proofs are \emph{succinct}: the verifier runs in time $\mathrm{polylog}(S)$, where $S$ is the circuit size, 
+and communication complexity is also polylogarithmic. 
+Unlike Groth16, the proof length is not constant — typical proofs consist of $O(\log S)$ group elements plus a sum-check transcript — 
+but remain much shorter than the witness size. 
+Thus, Spartan achieves succinct verification while trading off slightly larger proofs in exchange for universality and transparent setup.
+
+
+\subsubsection{STARKs}
+
+STARKs (Scalable Transparent ARguments of Knowledge; Ben-Sasson et al.) are
+succinct, \emph{transparent} (no trusted setup) proof systems built from an
+IOP over polynomials. They combine:
+(i) an \emph{algebraic intermediate representation} (AIR) that encodes
+computation as local polynomial constraints on a finite field evaluation trace,
+(ii) a \emph{low-degree test} via FRI (Fast Reed–Solomon IOPP),
+and (iii) Merkle commitments for oracle access.
+
+\paragraph{Computation as AIR.}
+Fix a finite field $\mathbb{F}$ and a multiplicative subgroup
+$H=\{\omega^0,\dots,\omega^{n-1}\}\subset \mathbb{F}^\times$ of size $n$,
+generated by $\omega$.
+An execution trace with $m$ registers is a matrix
+$T \in \mathbb{F}^{n\times m}$; denote by
+$\mathbf{t}(X) = (t_1(X),\dots,t_m(X))$ the $m$ evaluation oracles so that
+$t_j(\omega^i)=T_{i,j}$.
+The AIR specifies:
+\begin{itemize}
+  \item \textbf{Boundary constraints:} values of the trace at designated rows, encoded as
+  polynomials $B_\ell$ that must vanish at those rows, e.g.
+  $B_\ell(\mathbf{t}(\omega^{i_\ell}))=0$.
+  \item \textbf{Transition constraints:} local relations between consecutive rows, given by
+  polynomials $P_1,\dots,P_r$ such that for all $x\in H^\star := H\setminus\{\omega^{n-1}\}$,
+  \[
+    P_j\big(\mathbf{t}(x),\mathbf{t}(\omega x)\big)=0
+    \quad \text{for } j=1,\dots,r.
+  \]
+\end{itemize}
+
+\paragraph{Vanishing polynomials and normalization.}
+Let $Z_H(X)=X^n-1$ and $Z_{H^\star}(X)=\frac{X^n-1}{X-\omega^{n-1}}$.
+We convert the “vanishes on a set” conditions into global polynomial identities by dividing by the corresponding vanishing polynomials. Define the \emph{normalized transition terms}
+\[
+  \mathsf{Tr}_j(X)
+  \;=\; \frac{P_j\big(\mathbf{t}(X),\mathbf{t}(\omega X)\big)}{Z_{H^\star}(X)}
+\]
+and normalized boundary terms
+\[
+  \mathsf{Bd}_\ell(X)
+  \;=\; \frac{B_\ell\big(\mathbf{t}(X)\big)}{Z_{S_\ell}(X)},
+\]
+where $S_\ell\subseteq H$ is the subset (often a small set of rows) on which the $\ell$-th boundary
+constraint should vanish and $Z_{S_\ell}(X)=\prod_{x\in S_\ell} (X-x)$.
+
+\paragraph{Composition polynomial.}
+The verifier folds all constraints into a single low-degree target via random
+linear combination. Sampling independent challenges
+$\alpha_1,\dots,\alpha_r,\beta_1,\dots,\beta_b \xleftarrow{\$}\mathbb{F}$,
+define
+\[
+  C(X)
+  \;=\;
+  \sum_{j=1}^{r} \alpha_j \cdot \mathsf{Tr}_j(X)
+  \;+\;
+  \sum_{\ell=1}^{b} \beta_\ell \cdot \mathsf{Bd}_\ell(X).
+\]
+If all constraints hold, each numerator vanishes on its domain, so each term is a polynomial and
+$C(X)$ is a \emph{low-degree polynomial} with a known bound $\deg(C)\le D$ determined by AIR degrees.
+
+\paragraph{FRI low-degree test (overview).}
+The prover must convince the verifier that $C$ has degree at most $D$ without
+revealing $C$ explicitly. Using the FRI IOPP:
+\begin{enumerate}
+  \item \textbf{Commit (RS oracle):} The prover publishes a Merkle commitment to the evaluations of $C$ on a large evaluation domain $U\supseteq \mathbb{F}$ (typically a larger subgroup).
+  \item \textbf{FRI rounds:} The parties engage in $\log |U|$ rounds of degree testing that iteratively “fold” the evaluation into lower-degree claims via random linear combinations at verifier-chosen challenges.
+  \item \textbf{Query:} The verifier opens $O(\log |U|)$ random positions across the FRI layers and checks local constraints for consistency with a degree-$\le D$ polynomial.
+\end{enumerate}
+Soundness follows from the FRI proximity test: if $C$ is $\varepsilon$-far from any degree-$D$
+polynomial, the verifier rejects with noticeable probability.
+
+\paragraph{Putting it together: STARK IOP.}
+A canonical STARK prover provides the following oracles and checks:
+\begin{enumerate}
+  \item \textbf{Trace commitment:} Commit (via Merkle) to each register oracle $t_j$ over $H$.
+  \item \textbf{Constraint oracles:} Using the committed trace, produce commitments to the
+  numerators $P_j(\mathbf{t}(X),\mathbf{t}(\omega X))$ over $H^\star$ and to boundary numerators $B_\ell(\mathbf{t}(X))$ over $S_\ell$ (or embed all into a common evaluation domain).
+  \item \textbf{Random coefficients:} Verifier samples $\alpha_j,\beta_\ell$ (Fiat–Shamir in NIZK form).
+  \item \textbf{Composition oracle:} Prover forms/commits to $C(X)$ evaluations on $U$.
+  \item \textbf{Low-degree proof:} Run FRI to prove $\deg(C)\le D$.
+  \item \textbf{Consistency queries:} Verifier requests openings at random $z$ (often $z\notin H$ in “DEEP” variants)
+  to check that $C(z)$ equals the prescribed linear combination of normalized terms, and that each normalized term
+  equals its numerator divided by the appropriate vanishing polynomial at $z$:
+  \[
+    C(z)\;\stackrel{?}{=}\;\sum_{j}\alpha_j \cdot
+      \frac{P_j(\mathbf{t}(z),\mathbf{t}(\omega z))}{Z_{H^\star}(z)}
+    \;+\; \sum_{\ell}\beta_\ell\cdot \frac{B_\ell(\mathbf{t}(z))}{Z_{S_\ell}(z)}.
+  \]
+  All openings are authenticated via Merkle decommitments back to the committed oracles.
+\end{enumerate}
+
+\paragraph{DEEP / OODS optimization.}
+Modern STARKs use \emph{DEEP} (Domain Extension for Eliminating Pretenders)
+or \emph{OODS} (Out-Of-Domain Sampling): the verifier samples $z\notin H$,
+so divisions by $Z_{H^\star}(z)$ and $Z_{S_\ell}(z)$ are field divisions (non-zero denominators) and the
+consistency checks avoid boundary-edge pathologies, improving soundness.
+
+\paragraph{Zero-knowledge.}
+Plain AIR proofs leak the execution trace. ZK is achieved by \emph{masking}:
+add random low-degree blinding polynomials to trace and constraint oracles (that
+cancel in the normalized combination) and/or use randomized boundary padding,
+so that individual $t_j(\cdot)$ values are hidden while $C$ remains low-degree.
+
+\paragraph{Soundness (sketch).}
+If any constraint fails on a non-negligible fraction of $H$ (or $H^\star$),
+then with high probability over $\alpha,\beta$, the composition polynomial $C$
+is far from degree-$D$. FRI rejects with probability $\Omega(1)$, amplified by
+repetition. Binding relies on Merkle commitments with collision-resistant hashing.
+
+\paragraph{Complexity and properties.}
+\begin{itemize}
+  \item \textbf{Transparency:} No trusted setup; only public randomness and hash functions.
+  \item \textbf{Prover:} $\tilde{O}(n\log n)$ field ops (FFT-friendly domains), plus hashing for Merkle trees.
+  \item \textbf{Verifier:} Polylogarithmic in $n$ field ops, and a handful of hash queries/openings.
+  \item \textbf{Proof size:} $\tilde{O}(\log n)$ field elements + $O(\log n)$ Merkle paths (tens of KBs in practice).
+  \item \textbf{Crypto assumptions:} Information-theoretic soundness of FRI + collision resistance of the hash.
+  \item \textbf{Fields / domains:} Requires large subgroups (typically $2^k$-roots); often use $\mathbb{F}_{2^{64}-2^{32}+1}$ or large prime fields with suitable roots of unity.
+\end{itemize}
+
+\paragraph{Comparison.}
+Compared to KZG-based SNARKs (Groth16/PLONK/Marlin), STARKs are fully transparent and post-quantum (assuming hash security), with simpler assumptions, at the cost of larger proofs and heavier hashing. They avoid pairings and polynomial commitments with trusted SRS, relying instead on FRI for low-degree testing and Merkle commitments for oracle binding.
+
+\subsubsection*{Example: Aurora}
+
+Aurora is an interactive oracle proof (IOP) system designed to give succinct proofs of R1CS satisfiability with a \emph{transparent setup} (no trusted ceremony). 
+It can be viewed as a precursor to STARKs, combining the sum-check protocol with the FRI polynomial commitment scheme to obtain scalability and post-quantum security. 
+
+\subsubsection*{Arithmetization}
+
+As with Spartan, the computation is expressed as an R1CS instance. 
+Given matrices $(A,B,C)$ and a witness $\mathbf{z}$, we require 
+\[
+A\mathbf{z} \circ B\mathbf{z} = C\mathbf{z}.
+\]
+This condition is encoded into a polynomial identity that should vanish on a large evaluation domain $H \subset \mathbb{F}$. 
+The prover commits to polynomials representing the R1CS relations and the witness, and the verifier’s task is to check the vanishing condition at a random subset of points in $H$.
+
+\subsubsection*{Protocol Description}
+
+\begin{protocol}
+\begin{enumerate}
+  \item \textbf{Encoding:}  
+  The prover encodes the witness $\mathbf{z}$ and constraint polynomials into low-degree polynomials over a large evaluation domain $H$. 
+  These polynomials are placed in an oracle table accessible to the verifier.
+
+  \item \textbf{Commitment (FRI):}  
+  To commit to the oracle, the prover applies the FRI protocol, which iteratively folds evaluations of the polynomials to reduce their degree. 
+  This gives the verifier confidence that the oracle functions are indeed low-degree.
+
+  \item \textbf{Constraint Check (Sum-Check):}  
+  The prover and verifier engage in a sum-check protocol to verify that the encoded polynomials satisfy the R1CS relation across $H$. 
+  This reduces the global correctness condition to checking consistency at a few random points.
+
+  \item \textbf{Query Phase:}  
+  The verifier queries a small number of oracle locations determined by the FRI and sum-check challenges. 
+  The prover reveals the corresponding evaluations along with authentication paths to ensure consistency with earlier commitments.
+
+  \item \textbf{Decision:}  
+  If all FRI consistency checks and sum-check conditions succeed, the verifier accepts. 
+  Otherwise, the verifier rejects.
+\end{enumerate}
+\end{protocol}
+
+
+\paragraph{Completeness.}
+If the prover encodes a valid witness $\mathbf{z}$ that satisfies the R1CS constraints, 
+then the constraint polynomial vanishes on the evaluation domain $H$. 
+The sum-check protocol reduces this global condition to a handful of random point checks, 
+and the FRI protocol ensures that the committed oracles are indeed low-degree. 
+Hence, an honest prover always convinces the verifier.
+
+\paragraph{Soundness.}
+If the prover attempts to cheat, they must either (i) commit to a polynomial of degree higher than allowed, 
+or (ii) use polynomials inconsistent with the R1CS constraints. 
+FRI guarantees that with high probability, the verifier rejects case (i), 
+since a non–low-degree polynomial fails the folding checks at random challenges. 
+In case (ii), the sum-check protocol reduces the violation to a disagreement at a random evaluation point. 
+By the Schwartz–Zippel lemma, the probability of passing all random checks is at most $\deg/|\mathbb{F}|$, 
+which is negligible in the field size. 
+
+\paragraph{Zero-Knowledge.}
+The base Aurora protocol is not zero-knowledge, 
+since the verifier’s oracle queries may leak partial information about the witness. 
+However, as described in the original work and subsequent refinements, 
+Aurora can be compiled into a zero-knowledge protocol by adding random blinding polynomials 
+to the committed oracles and carefully masking the sum-check transcript. 
+This ensures that the verifier learns nothing beyond the validity of the statement, 
+with only modest additional overhead.
+
+\paragraph{Succinctness.}
+Aurora achieves succinct verification: the verifier runs in $\mathrm{polylog}(S)$ time, 
+where $S$ is the size of the circuit (or R1CS instance), 
+and the proof size is also $\mathrm{polylog}(S)$. 
+Concretely, the verifier performs $O(\log S)$ rounds of FRI checks and a small number of oracle queries, 
+while the prover runs in nearly linear time $O(S \log S)$ to compute the committed polynomials. 
+Proofs are longer than constant-size SNARKs such as Groth16, 
+but remain exponentially shorter than the witness and avoid the need for a trusted setup, 
+relying only on transparent cryptographic assumptions.
+
+
+\subsection{Recursive SNARKs}
+
+A recursive SNARK is a proof system in which a proof can itself verify other proofs. More precisely, the verifier logic of a SNARK can be expressed as a circuit, and this circuit can then be proven inside another SNARK. Recursion enables the compression of long chains of computations or proofs into a single succinct proof. This property is especially important for applications such as blockchains, where many proofs must be aggregated efficiently, and for incrementally verifiable computation (IVC), where a computation unfolds over many steps but verification remains constant-time.
+
+Key motivations:
+\begin{itemize}
+    \item \textbf{Proof aggregation:} Combine many proofs into a single succinct proof.
+    \item \textbf{Incrementally verifiable computation (IVC):} Verify a long-running computation step-by-step while keeping verification time polylogarithmic in the number of steps.
+    \item \textbf{Scalability:} Essential for blockchain rollups, cross-chain verification, and recursive validity proofs.
+\end{itemize}
+
+\subsubsection{Halo / Halo2}
+
+Halo (Bowe, Gabizon, Green, 2019) introduced a methodology for building recursive SNARKs without a trusted setup. The central idea is to use \emph{accumulation schemes}, where proofs are reduced to simpler algebraic objects that can be efficiently aggregated. Halo avoids the need for pairings by relying on polynomial commitment schemes based on the inner product argument (IPA), achieving transparency (no trusted setup) and post-quantum plausibility.
+
+\subsubsection*{Arithmetization}
+
+Halo2 uses a \emph{PLONKish arithmetization}, an extension of the PLONK constraint system. 
+The key features are:
+\begin{itemize}
+    \item \textbf{Custom gates:} Developers can encode non-standard arithmetic relations more efficiently than with vanilla R1CS.
+    \item \textbf{Lookup arguments:} Allow the circuit to enforce that certain values belong to a predefined table, reducing constraint costs for common operations (e.g., range checks, bit decompositions).
+    \item \textbf{Flexible wiring:} Enables complex constraints to be enforced compactly, improving prover efficiency.
+\end{itemize}
+This flexibility is critical for recursion, since verifying a SNARK inside another requires expressing elliptic-curve operations efficiently.
+
+\subsubsection*{Protocol Intuition}
+
+The Halo approach avoids pairings and trusted setup by using an \emph{accumulation scheme}. 
+Instead of verifying a proof directly inside another proof, Halo compresses verification equations into an accumulator that is much cheaper to check recursively.
+
+High-level flow:
+\begin{enumerate}
+    \item The prover commits to polynomials using an IPA-based commitment scheme.
+    \item The verifier’s checks (e.g., polynomial evaluations) are reduced to an accumulator instance.
+    \item A recursive SNARK only needs to prove that the accumulator is valid, not re-check the full proof.
+    \item At the end of a long recursive chain, one final proof validates the entire sequence.
+\end{enumerate}
+
+\begin{protocol}
+\textbf{Halo (high-level protocol sketch):}
+\begin{enumerate}
+    \item \textbf{Commit:} The prover commits to witness polynomials via an IPA-based polynomial commitment.
+    \item \textbf{Challenge:} The verifier (modeled as public-coin) samples challenges for evaluation.
+    \item \textbf{Accumulator:} Instead of verifying equations directly, the prover produces an accumulator instance encoding the correctness conditions.
+    \item \textbf{Recursive proof:} The accumulator is itself proven correct inside another Halo proof.
+    \item \textbf{Final verification:} A single outer proof certifies the validity of the entire recursive computation.
+\end{enumerate}
+\end{protocol}
+
+\paragraph{Completeness.}
+If the prover follows the protocol honestly and the committed polynomials are correct, then all accumulator checks succeed. Recursive proofs will verify, and the final proof will be accepted.
+
+\paragraph{Soundness.}
+Soundness relies on the binding property of the IPA-based polynomial commitment scheme. A cheating prover cannot produce a false accumulator without solving the discrete logarithm problem. Thus, except with negligible probability, only valid computations can be proven.
+
+\paragraph{Zero-Knowledge.}
+Zero-knowledge is obtained by adding randomizers (blinding factors) to the polynomial commitments and responses. This ensures that the proof reveals nothing about the witness beyond what is implied by the statement being proven.
+
+\paragraph{Succinctness.}
+Each Halo proof is logarithmic in size relative to the circuit, and recursive verification only adds a small overhead. As a result, a chain of many proofs can be compressed into a single succinct proof whose size and verification cost remain polylogarithmic.
+
+\subsubsection{Nova / SuperNova}
+
+\subsubsection*{Arithmetization}
+
+Nova is built on a \emph{relaxed R1CS} (Rank-1 Constraint System).  
+A relaxed R1CS extends ordinary R1CS by allowing a slack variable, which makes it possible to combine multiple instances of R1CS constraints into a single one.  
+This relaxation is key for recursion: it enables the composition of many proof instances into a single recursive proof without blowing up constraint size.  
+
+SuperNova further generalizes Nova’s framework, supporting a wider class of incremental computations by allowing multiple “step circuits” (multi-circuit IVC) instead of a single fixed circuit.
+
+\subsubsection*{Protocol Intuition}
+
+Nova achieves incrementally verifiable computation (IVC) by folding many R1CS instances into one.  
+At each step of a long computation, the prover generates:
+\begin{itemize}
+    \item A new witness for the next step of the computation.
+    \item A \emph{folding proof} that merges the new R1CS instance with the accumulated state into a single relaxed R1CS instance.
+\end{itemize}
+
+This folding step ensures that, after $T$ steps, the verifier only needs to check a single relaxed R1CS instance rather than all $T$ of them.  
+Finally, the accumulated instance can be proven using any efficient SNARK (e.g., Groth16, Halo2, Spartan).  
+
+\begin{protocol}
+\textbf{Nova (high-level protocol sketch):}
+\begin{enumerate}
+    \item \textbf{Setup:} Define a circuit $C$ representing one step of the computation in R1CS form. Initialize an accumulator instance.
+    \item \textbf{Folding:} At each step $i$, the prover folds the new R1CS instance $(C, w_i)$ with the current accumulator into a new relaxed R1CS instance.
+    \item \textbf{Recursion:} The prover outputs a short proof that the folding was performed correctly.
+    \item \textbf{Final proof:} After $T$ steps, the verifier checks one succinct SNARK proof attesting to the correctness of the final relaxed R1CS instance, which implicitly certifies all prior steps.
+\end{enumerate}
+\end{protocol}
+
+\paragraph{Completeness.}  
+If each step’s witness is valid for the circuit $C$, then every folding step preserves correctness.  
+The final relaxed R1CS instance is satisfiable, and the outer SNARK verifies it, so the verifier accepts.  
+
+\paragraph{Soundness.}  
+Soundness follows from the binding property of the folding scheme: a cheating prover cannot fold an invalid instance into a valid relaxed R1CS without breaking the underlying cryptographic assumptions (e.g., hardness of discrete logarithm or knowledge-of-exponent).  
+Thus, an invalid computation cannot produce a convincing final proof.  
+
+\paragraph{Zero-Knowledge.}  
+Nova itself is not zero-knowledge by default (it prioritizes IVC efficiency).  
+However, by combining Nova with a zero-knowledge SNARK (e.g., Groth16, Halo2, or PLONK) for the outer proof, one obtains a recursive zero-knowledge proof system.  
+
+\paragraph{Succinctness.}  
+Each folding step adds only polylogarithmic overhead, and the final verification requires checking a single succinct SNARK proof.  
+Thus, verification cost remains \emph{independent of the number of steps}, making Nova and SuperNova highly scalable for long computations.
