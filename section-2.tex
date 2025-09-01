@@ -1,0 +1,63 @@
+\section{NIZK Transforms}
+
+\subsection{Fiat-Shamir Transform}
+
+\begin{definition}[Public-Coin Interactive Proof]
+A \emph{public-coin interactive proof} for a language $L \subseteq \{0,1\}^*$ is an IP in which, for every round that the verifier sends a message, that message consists solely of the outcome of tossing a sequence of uniformly random and independently distributed public coins, i.e. $\mathcal{V}$ samples $r_i \xleftarrow{\$} \{0,1\}^*$ for every round $i$. 
+\end{definition}
+
+\begin{example}
+A classic example of a public-coin IP is the Sum-Check Protocol (described in Section 1.1).
+\end{example}
+
+\myspace
+
+\noindent The purpose of the Fiat-Shamir transformation is to transform any public-coin IP $I$ into a non-interactive publicly-verifiable protocol $Q$ in the random oracle model. \\
+
+\noindent A naive approach would be to use a random oracle to sample challenges (independent of $\mathcal{P}$); however, if these random oracle queries are fixed in advance, i.e., $r_i = \mathsf{RO}(i)$, then the prover could precompute all verifier challenges before sending any messages, potentially violating soundness.
+
+\begin{remark}
+This is a consequence of the adaptivity mentioned in Section 1.
+\end{remark}
+
+\noindent The Fiat-Shamir transformation addresses this by making the $i$-th random challenge depend on all prover messages thus far, binding the challenge to the transcript and preventing the prover from gaining access to $r_i$ before sending $m_i$.
+
+\myspace
+
+\begin{definition}[Fiat--Shamir Transformation]\label{def:fiat_shamir}
+Let $I = (\mathcal{P},\mathcal{V})$ be an $m$-round public-coin interactive proof or argument for a language $L \subseteq \{0,1\}^*$, where in round $i$ the challenge $r_i$ is drawn uniformly from $\{0,1\}^{k_i}$. The \emph{Fiat--Shamir transformation} produces a non-interactive protocol $Q = (P^{\mathsf{FS}},V^{\mathsf{FS}})$ in the \emph{random oracle model} as described in the protocol below.
+\end{definition}
+
+\myspace
+
+\begin{protocol}
+\textbf{Common input:} $x \in \{0,1\}^*$ \\  
+
+\textbf{Prover $P^{\mathsf{FS}}$:}
+\begin{enumerate}
+    \item Initialize an empty transcript $T_0 := \epsilon$.
+    \item For $i = 1$ to $m$:
+    \begin{enumerate}
+        \item Compute the next prover message $g_i$ as in $P$ on input $(x, T_{i-1})$.
+        \item Query the random oracle on $(x, g_1,\ldots,g_i)$ to obtain $r_i \in \{0,1\}^{k_i}$.
+        \item Update the transcript: $T_i := T_{i-1} \,\|\, g_i \,\|\, r_i$.
+    \end{enumerate}
+    \item Output $\pi := (g_1, r_1, g_2, r_2, \ldots, g_m, r_m)$ as the non-interactive proof.
+\end{enumerate}
+
+\textbf{Verifier $V^{\mathsf{FS}}$:}
+\begin{enumerate}
+    \item Parse $\pi$ into $(g_1, r_1, \ldots, g_m, r_m)$.
+    \item For each $i \in [m]$, recompute $r_i$ as $\mathsf{RO}(x, g_1,\ldots,g_i)$ and verify it matches the value in $\pi$.
+    \item If all checks pass, run $V$ on $(x, \pi)$ using the included $(g_i, r_i)$ values, and output $V$’s decision.
+\end{enumerate}
+\end{protocol}
+
+\myspace
+
+\begin{remark}
+In the \emph{hash chaining} optimization, the query in round $i$ may instead be $(x,i,r_{i-1},g_i)$, with $r_0 := 0^{k_0}$, to reduce the size of hash inputs.
+\end{remark}
+\begin{remark}
+For \emph{adaptive soundness} against adversaries that choose $x$, the input $x$ must be included in every hash query.
+\end{remark}

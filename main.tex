@@ -1,0 +1,50 @@
+\documentclass[10pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[OT1]{fontenc}
+\usepackage{amsfonts, amsmath, amsthm, amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+\usepackage{tcolorbox}
+\tcbuselibrary{listings, skins, breakable}
+
+\input{macros}
+
+\title{\Huge \bfseries Verifiable Computing}
+\author{\large \scshape Compiled by Sabrina Hirani}
+\date{\Large \scshape Summer 2025}
+\begin{document}
+\maketitle 
+
+\noindent \textit{These are personal notes on verifiable computing referencing notes by Justin Thaler, Alessandro Chiesa, etc.}
+
+% TODO why is ordering of quanitiers flipped for MIP completeness
+
+% TODO IP for SAT seems a little scuffed
+
+% TODO protocol description of PCP seems correct but display/presentation is really funky
+
+% TODO move complexity results to appendix
+
+\tableofcontents 
+
+\input{section-1}
+
+\newpage
+
+\input{section-2}
+
+\newpage
+
+\input{section-3}
+
+\newpage
+
+\input{section-4}
+
+\end{document}
+

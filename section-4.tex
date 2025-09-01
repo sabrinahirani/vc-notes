@@ -1,0 +1,976 @@
+\section{Argument Systems}
+
+\subsection{$\Sigma$-Protocols}
+
+\begin{definition}[$\Sigma$-Protocol]
+  A $\Sigma$-protocol is a three-move public-coin interactive proof $(\mathcal{P},\mathcal{V})$ for a language $L \subseteq \{0,1\}^*$ (with common input $x$). It satisfies the following structure:
+
+  \begin{enumerate}
+    \item \textbf{Commitment:} The prover $\mathcal{P}$ sends a message $a$ to the verifier $\mathcal{V}$.
+    \item \textbf{Challenge:} The verifier $\mathcal{V}$ replies with a uniformly random challenge $c$.
+    \item \textbf{Response:} The prover sends a response $z$ such that the verifier can check $\phi(x, a, c, z) \stackrel{?}{=}$ \emph{accept}.
+  \end{enumerate}
+\end{definition}
+
+\begin{remark}
+  In a $\Sigma$-protocol, we use \emph{special soundness} rather than the previously-defined notion of soundness. 
+  Soundness only guarantees that a prover without a witness cannot convince the 
+  verifier of a false statement, except with negligible probability. Special soundness, 
+  on the other hand, is an \emph{extractability} property: given two accepting transcripts 
+  with the same first message but different challenges, one can efficiently compute a valid 
+  witness. This stronger notion is what allows $\Sigma$-protocols to serve as 
+  \emph{proofs of knowledge}, and it underlies transformations such as the Fiat--Shamir 
+  heuristic.
+\end{remark}
+
+\begin{definition}[Special Soundness]
+  A $\Sigma$-protocol for a relation $R \subseteq \{0,1\}^* \times \{0,1\}^*$ has 
+  \emph{special soundness} if there exists a polynomial-time algorithm 
+  $\mathsf{Ext}$ such that for every $x \in \{0,1\}^*$, and for any two 
+  accepting transcripts $(a,e,z)$, $(a,e',z')$ with the same first message $a$, distinct challenges $e \neq e'$, and both accepted 
+  by the verifier on input $x$, the extractor outputs a witness
+  $w \gets \mathsf{Ext}(x,a,e,z,e',z')$ such that $(x,w) \in R$.
+\end{definition}
+
+\noindent A $\Sigma$-protocol also satisifies the following zero-knowledge property:
+
+\begin{definition}[Honest-Verifier Zero-Knowledge]
+  A $\Sigma$-protocol for a relation $R$ has \emph{honest-verifier zero-knowledge} (HVZK) 
+  if there exists a probabilistic polynomial-time simulator $\mathsf{Sim}$ such that for 
+  every $(x,w) \in R$, the distribution of transcripts produced by the simulator
+  $\mathsf{Sim}(x)$ is identically distributed (or \emph{computationally indistinguishable}) from the distribution 
+  of transcripts generated in a real execution of the protocol between $P(x,w)$ and an 
+  honest verifier $V(x)$. In other words, an honest verifier learns nothing beyond the 
+  validity of the statement $x \in L = \{\,x : \exists w \ (x,w) \in R\,\}$.
+\end{definition}
+
+\begin{remark}
+  Intuitively, this shows an honest verifier learns nothing beyond the fact that 
+  the prover knows the discrete logarithm $w$.
+\end{remark}
+
+\subsubsection{Schnorr Protocol}
+
+\paragraph{Premise}
+The Schnorr protocol is a classic example of a $\Sigma$-protocol, used to prove knowledge 
+of a discrete logarithm. Let $\mathbb{G}$ be a cyclic group of prime order $q$ with generator $g$. 
+The public input is $x = g^w \in \mathbb{G}$, and the witness is the secret exponent 
+$w \in \mathbb{Z}_q$ such that $(x,w) \in R = \{(g^w, w)\}$.
+
+\myspace
+
+\begin{protocol}[Schnorr Protocol]
+  \begin{enumerate}
+    \item \textbf{Commitment:} The prover samples $r \stackrel{\$}{\leftarrow} \mathbb{Z}_q$ uniformly at random 
+    and sends $a = g^r \in \mathbb{G}$ to the verifier.
+    \item \textbf{Challenge:} The verifier samples $c \stackrel{\$}{\leftarrow} \mathbb{Z}_q$ uniformly at random 
+    and sends $c$ to the prover.
+    \item \textbf{Response:} The prover computes $z = r + c \cdot w \pmod{q}$ and sends $z$ to the verifier.
+    \item \textbf{Verification:} The verifier accepts if 
+    $
+      g^z \stackrel{?}{=} a \cdot x^c.
+    $
+  \end{enumerate}
+  \end{protocol}
+
+\paragraph{Completeness}
+If both prover and verifier follow the protocol honestly, then verification always holds:
+\[
+g^z = g^{r + cw} = g^r \cdot (g^w)^c = a \cdot x^c
+\]
+
+\paragraph{Special Soundness}
+Suppose a cheating prover produces two valid accepting transcripts 
+\((a,c,z)\) and \((a,c',z')\) with the same $a$ but different challenges $c \neq c'$.  
+Then from the responses:
+\[
+z = r + cw \pmod{q}, \quad z' = r + c'w \pmod{q},
+\]
+we can subtract to obtain
+\[
+(z - z') \equiv (c - c')w \pmod{q}
+\]
+Since $c \neq c'$, this gives
+\[
+w \equiv (z - z') \cdot (c - c')^{-1} \pmod{q}.
+\]
+Thus the witness $w$ can be efficiently extracted, demonstrating \emph{special soundness}.
+
+\paragraph{Honest-Verifier Zero-Knowledge}
+To show HVZK, we define a simulator $\mathsf{Sim}(x)$:  
+sample $c \stackrel{\$}{\leftarrow} \mathbb{Z}_q$, sample $z \stackrel{\$}{\leftarrow} \mathbb{Z}_q$, and set
+\[
+a = g^z \cdot x^{-c}.
+\]
+Then output the transcript $(a,c,z)$.  
+This distribution is identical to that of real transcripts between an honest prover and an honest verifier, 
+so the protocol is HVZK.
+
+\subsubsection*{References}
+\begin{itemize}
+  \item Ronald Cramer. \emph{Modular design of secure yet practical cryptographic protocols}. 
+  PhD thesis, University of Amsterdam, 1996.
+  \item Claus-Peter Schnorr. \emph{Efficient identification and signatures for smart cards}. 
+  In Advances in Cryptology—CRYPTO '89, Lecture Notes in Computer Science, vol. 435, 
+  pages 239--252. Springer, 1990.
+\end{itemize}
+
+\subsection{SNARKs}
+
+\begin{definition}[Circuit Satisfiability]
+Let $C: \{0,1\}^n \to \{0,1\}^m$ be a Boolean circuit. A \emph{satisfying assignment} for $C$ is an input $w \in \{0,1\}^n$ such that
+$
+C(w) = y
+$
+for a given public output $y \in \{0,1\}^m$. The \emph{circuit satisfiability problem} asks: given a circuit $C$ and output $y$, determine whether there exists a witness $w$ such that $C(w) = y$.
+\end{definition}
+
+\begin{remark}
+Circuit satisfiability is an NP-complete problem.
+\end{remark}
+
+\begin{remark}
+While circuit satisfiability on its own is a well-defined computational problem, 
+proving that a witness exists is trivial in the sense that anyone who knows the witness 
+can simply reveal it. The power of SNARKs comes from adding \emph{zero-knowledge}: 
+the prover can convince the verifier that a satisfying assignment exists without revealing 
+any information about the witness itself.
+\end{remark}
+
+\subsubsection{Groth16}
+
+Groth16 \cite{groth2016} is one of the most widely deployed succinct non-interactive arguments of knowledge (SNARKs), 
+used in systems such as Zcash and numerous blockchain applications. 
+It achieves extremely short proofs (just three group elements) and fast verification, 
+making it particularly well-suited for practical deployment. 
+
+\subsubsection*{Arithmetization}
+
+\paragraph{R1CS}
+The first step is to represent the computation as a \emph{Rank-1 Constraint System} (R1CS).  
+An R1CS consists of a sequence of constraints over a finite field $\mathbb{F}$, each of the form:
+\[
+\langle \mathbf{a}_i, \mathbf{z} \rangle \cdot 
+\langle \mathbf{b}_i, \mathbf{z} \rangle \;=\; 
+\langle \mathbf{c}_i, \mathbf{z} \rangle \quad \forall i \in [m],
+\]
+where $\mathbf{a}_i, \mathbf{b}_i, \mathbf{c}_i \in \mathbb{F}^n$ are fixed vectors, and $\mathbf{z} \in \mathbb{F}^n$ is the vector of variables, which includes both the witness and auxiliary variables.  
+
+Equivalently, each constraint enforces that the componentwise linear combinations 
+$\langle \mathbf{a}_i, \mathbf{z} \rangle$ and $\langle \mathbf{b}_i, \mathbf{z} \rangle$ multiply to produce 
+$\langle \mathbf{c}_i, \mathbf{z} \rangle$.  
+A satisfying assignment $\mathbf{z}$ simultaneously satisfies all constraints.
+
+R1CSs are expressive enough to capture any computation in $\mathsf{NP}$.  
+Indeed, given a Boolean or arithmetic circuit, one can systematically translate each gate into a corresponding constraint.  
+For example, an addition gate $z_k = z_i + z_j$ can be encoded as
+\[
+(z_i + z_j - z_k) \cdot 1 = 0,
+\]
+and a multiplication gate $z_k = z_i \cdot z_j$ can be encoded as
+\[
+z_i \cdot z_j = z_k.
+\]
+
+\paragraph{Quadratic Arithmetic Programs (QAPs)}
+To enable succinct proofs, R1CS constraints are further encoded into a \emph{Quadratic Arithmetic Program} (QAP).  
+A QAP represents the sequence of constraints as polynomial identities. Specifically,  
+one constructs three families of polynomials $\{A_i(X)\}, \{B_i(X)\}, \{C_i(X)\}$ over $\mathbb{F}$,  
+such that a valid witness assignment $\mathbf{z}$ corresponds to a polynomial relation:
+\[
+\Big(\sum_{i=0}^{n} z_i A_i(X)\Big) \cdot 
+\Big(\sum_{i=0}^{n} z_i B_i(X)\Big) - 
+\Big(\sum_{i=0}^{n} z_i C_i(X)\Big)
+\]
+is divisible by a fixed target polynomial $T(X)$ that encodes the set of constraints.  
+
+This divisibility condition ensures that all R1CS constraints are satisfied simultaneously.  
+The QAP representation is the foundation on which Groth16 builds its succinct polynomial commitment scheme using pairings.
+
+\paragraph{Target Polynomial and Lagrange Basis}
+Let $\tau_1, \dots, \tau_m \in \mathbb{F}$ be the evaluation domain. These are distinct points associated with the $m$ constraints of the R1CS.
+
+\noindent To express the constraint polynomials, one often uses the \emph{Lagrange basis polynomials}:
+\[
+L_j(X) = \prod_{\substack{1 \leq k \leq m \\ k \neq j}} \frac{X - \tau_k}{\tau_j - \tau_k},
+\]
+which satisfy $L_j(\tau_k) = \delta_{jk}$.  
+Then, for each variable $z_i$, the polynomials $A_i(X), B_i(X), C_i(X)$ can be written as
+\[
+A_i(X) = \sum_{j=1}^{m} a_{i,j} L_j(X), \quad 
+B_i(X) = \sum_{j=1}^{m} b_{i,j} L_j(X), \quad 
+C_i(X) = \sum_{j=1}^{m} c_{i,j} L_j(X),
+\]
+where $(a_{i,j}, b_{i,j}, c_{i,j})$ are the R1CS coefficients for the $j$-th constraint.  
+
+The target polynomial $T(X)$ is typically defined as
+\[
+T(X) = \prod_{j=1}^{m} (X - \tau_j),
+\]  
+Each constraint is enforced at its corresponding evaluation point $\tau_j$.  
+
+This Lagrange interpolation ensures that evaluating $(A_i,B_i,C_i)$ at $\tau_j$ enforces the $j$-th constraint, 
+while divisibility by $T(X)$ guarantees that all constraints hold simultaneously.
+
+\subsubsection*{Protocol Intuition}
+
+\paragraph{Trace Table}
+To better understand Groth16 in the context of interactive oracle proofs (IOPs), 
+it is helpful to describe circuit satisfiability in terms of a \emph{trace table}.  
+The trace records the inputs, intermediate values, and outputs of each gate in the circuit.  
+
+\begin{example}[Trace Table for a Small Circuit]
+Consider a circuit over a field $\mathbb{F}$ with inputs $x_1, x_2 \in \mathbb{F}$,  
+and gates defined as:
+\[
+z_3 = x_1 + x_2, \quad 
+z_4 = z_3 \cdot x_1, \quad 
+z_5 = z_4 - 1.
+\]
+
+\noindent A satisfying witness $(x_1, x_2)$ induces the following table:
+
+\begin{center}
+\begin{tabular}{c|c|c|c}
+Gate & Type & Inputs & Output \\
+\hline
+$z_1$ & input & -- & $x_1$ \\
+$z_2$ & input & -- & $x_2$ \\
+$z_3$ & add   & $z_1, z_2$ & $x_1 + x_2$ \\
+$z_4$ & mul   & $z_3, z_1$ & $(x_1 + x_2) \cdot x_1$ \\
+$z_5$ & sub   & $z_4, 1$   & $(x_1 + x_2) \cdot x_1 - 1$
+\end{tabular}
+\end{center}
+\end{example}
+
+\paragraph{Correctness Conditions}
+For the table to represent a valid computation, the following checks must hold:
+\begin{enumerate}
+  \item \textbf{Input check:} The initial rows encode the given public inputs correctly.
+  \item \textbf{Gate check:} Each gate’s output is computed correctly from its inputs (e.g., addition, multiplication).
+  \item \textbf{Wiring check:} The wiring of the circuit is respected; i.e., whenever an input to a gate is supposed to be a copy of some previous output, the table entries agree.
+  \item \textbf{Output check:} The final designated output gate equals the claimed value (e.g., $z_5 = 0$ in the above example).
+\end{enumerate}
+
+\paragraph{From Trace Checks to Polynomial Identities}
+Groth16 enforces all of these conditions using a single type of algebraic constraint:  
+a \emph{zero test}. To require that a polynomial $P(X)$ vanishes on a set of evaluation points  
+$\{\tau_1, \dots, \tau_m\}$, one checks that
+\[
+T(X) = \prod_{j=1}^m (X - \tau_j) \;\;\Bigm|\;\; P(X).
+\]
+Here $T(X)$ is the vanishing polynomial of the constraint domain.  
+
+\begin{definition}[Zero Test]
+Let $D = \{\tau_1, \dots, \tau_m\} \subseteq \mathbb{F}$ be a finite set of evaluation points, 
+and let $T(X) = \prod_{j=1}^m (X - \tau_j)$ be the corresponding vanishing polynomial.  
+
+A polynomial $P(X) \in \mathbb{F}[X]$ passes the \emph{zero test on $D$} if
+\[
+P(\tau_j) = 0 \quad \text{for all } \tau_j \in D.
+\]
+Equivalently, $P(X)$ passes the zero test on $D$ if and only if $T(X)$ divides $P(X)$ in $\mathbb{F}[X]$:
+\[
+T(X) \;\bigm|\; P(X).
+\]
+
+In other words, the zero test certifies that the polynomial identity $P(X) = H(X) \cdot T(X)$ holds for some $H(X) \in \mathbb{F}[X]$, 
+which guarantees that all constraints indexed by $D$ are satisfied simultaneously.
+\end{definition}
+
+
+\paragraph{How Groth16 Implements These Checks}
+Groth16 begins with an R1CS encoding of the computation, then transforms it into a QAP.  
+Each constraint corresponds to an evaluation point $\tau_j$, and the prover’s assignment produces polynomials
+\[
+A(X) = \sum_i z_i A_i(X), \quad 
+B(X) = \sum_i z_i B_i(X), \quad 
+C(X) = \sum_i z_i C_i(X).
+\]
+The central QAP condition requires that
+\[
+A(X) \cdot B(X) - C(X) = H(X) \cdot T(X),
+\]
+for some polynomial $H(X)$.  
+
+Divisibility by $T(X)$ certifies that every constraint is satisfied at its designated point.  
+Wiring is enforced directly by reusing the same variable index $z_i$ wherever a wire appears,  
+so no additional permutation argument is required.  
+
+Thus, Groth16 reduces all correctness conditions for circuit satisfiability to a single zero-test polynomial identity.
+
+\subsubsection*{Setup}
+
+\paragraph{CRS.}
+Let $C$ be an arithmetic circuit with $n$ variables, $m$ multiplication gates, 
+and $\ell$ public inputs. 
+From $C$ we derive a QAP $(A_i(X),B_i(X),C_i(X))_{i=0}^n$ over a field $\mathbb{F}$ 
+with vanishing polynomial $Z(X) = \prod_{k=1}^m (X - r_k)$ for some evaluation points $\{r_1,\ldots,r_m\}$. 
+
+A trusted setup samples trapdoors 
+\[
+\tau,\alpha,\beta,\gamma,\delta \;\xleftarrow{\$}\;\mathbb{F},
+\]
+and encodes them into group elements in bilinear groups 
+$(\mathbb{G}_1,\mathbb{G}_2,\mathbb{G}_T)$ with pairing $e:\mathbb{G}_1\times \mathbb{G}_2\to\mathbb{G}_T$.
+
+The Common Reference String (CRS) is divided into:
+\begin{itemize}
+    \item \textbf{Verification key (VK):} 
+    Contains the group elements $[\alpha]\in\mathbb{G}_1$, $[\beta]\in\mathbb{G}_2$, $[\gamma]\in\mathbb{G}_2$, $[\delta]\in\mathbb{G}_2$, 
+    and the input consistency elements
+    \[
+    \mathrm{IC}_j = \Big[\frac{\beta A_j(\tau)+\alpha B_j(\tau)+C_j(\tau)}{\gamma}\Big] \in \mathbb{G}_1
+    \quad\text{for } j=0,\dots,\ell.
+    \]
+
+    \item \textbf{Proving key (PK):} 
+    Contains $\{[A_i(\tau)]\in\mathbb{G}_1,\; [B_i(\tau)]\in\mathbb{G}_2,\; [C_i(\tau)]\in\mathbb{G}_1\}_{i=0}^n$, 
+    together with 
+    \[
+    \Big[\frac{\beta A_i(\tau)+\alpha B_i(\tau)+C_i(\tau)}{\delta}\Big]\in \mathbb{G}_1 \quad \text{for } i=0,\dots,n,
+    \]
+    as well as encodings of the evaluation basis $[1],[\tau],[\tau^2],\ldots,[\tau^d] \in \mathbb{G}_1$
+    sufficient for committing to degree-$d$ polynomials.  
+\end{itemize}
+
+\noindent
+This setup is \emph{circuit-specific}, since the CRS explicitly encodes 
+the QAP selector polynomials $A_i,B_i,C_i$ of $C$ evaluated at $\tau$.  
+Any change in the circuit requires generating a fresh CRS.
+
+\myspace
+
+\begin{remark}
+A useful way to view Groth16 is as a polynomial commitment scheme
+tailored to quadratic arithmetic programs (QAPs). 
+The common reference string encodes powers of a secret value $\tau$, 
+allowing the prover to commit to polynomials ``at the point $\tau$'' 
+using only linear combinations of CRS elements. 
+The verifier then uses bilinear pairings to check divisibility relations 
+between these committed polynomials, without ever learning $\tau$. 
+This perspective highlights the role of the structured reference string: 
+it enables succinct commitments (just three group elements) and 
+enforces knowledge soundness through trapdoor scalars 
+$\alpha, \beta, \gamma, \delta$. 
+\end{remark}
+
+\myspace
+
+\begin{protocol}[Groth16]
+Let $C$ be a circuit with an associated R1CS instance of size $m$ and variables $(z_1, \dots, z_n)$ over a field $\mathbb{F}$.
+Let $\{A_i(X)\}, \{B_i(X)\}, \{C_i(X)\}$ be the QAP polynomials, and let $T(X)$ be the target polynomial.
+The Groth16 protocol consists of three phases:
+
+\begin{enumerate}
+  \item \textbf{Setup:} 
+  \begin{itemize}
+    \item Choose a secret evaluation point $\tau \in \mathbb{F}$ (known only during setup).
+    \item Generate structured reference strings (SRS) containing group encodings of $\tau^j$, 
+    and additionally encodings of $\alpha, \beta, \gamma, \delta \in \mathbb{F}$ and their multiples by $\tau^j$.
+    \item Publish the proving key $\mathsf{pk}$ and verification key $\mathsf{vk}$.
+  \end{itemize}
+
+  \item \textbf{Proving:}  
+  Given a satisfying assignment $\mathbf{z} = (z_1, \dots, z_n)$, the prover computes
+  \[
+  A(X) = \sum_{i=0}^{n} z_i A_i(X), \quad
+  B(X) = \sum_{i=0}^{n} z_i B_i(X), \quad
+  C(X) = \sum_{i=0}^{n} z_i C_i(X).
+  \]
+  By the QAP construction, if $\mathbf{z}$ is valid then
+  \[
+  A(X) \cdot B(X) - C(X) = H(X) \cdot T(X)
+  \]
+  for some polynomial $H(X)$.
+  Using the proving key, the prover commits (in the exponent) to $A(\tau), B(\tau), C(\tau)$ and $H(\tau)$,
+  and applies randomizers to ensure zero-knowledge.
+  The resulting proof $\pi = (\pi_A, \pi_B, \pi_C)$ consists of three group elements.
+
+  \item \textbf{Verification:}  
+  The verifier checks a single pairing-based equation:
+  \[
+  e(\pi_A, \pi_B) \;\stackrel{?}{=}\;
+  e(\alpha, \beta) \cdot e(\mathsf{vk}_x, \gamma) \cdot e(\pi_C, \delta),
+  \]
+  where $\mathsf{vk}_x$ is the verification key component that encodes the public inputs.
+  If the equality holds, the verifier accepts.
+\end{enumerate}
+\end{protocol}
+
+\myspace
+
+\begin{remark}
+Although Groth16 superficially resembles polynomial commitment schemes such as KZG
+— both rely on a structured reference string encoding $(1,\tau,\tau^2,\dots)$ —
+Groth16 does not provide a reusable polynomial commitment.
+Instead, the CRS is circuit-specific and only enables evaluation of the QAP polynomials
+at the hidden trapdoor $\tau$.  
+In contrast, KZG yields a universal, binding commitment that can be opened at arbitrary points.
+\end{remark}
+
+\myspace
+
+\begin{remark}[Circuit-specific trusted setup]
+Let $\{A_i(X)\}_{i=0}^n,\{B_i(X)\}_{i=0}^n,\{C_i(X)\}_{i=0}^n$ be the QAP selector polynomials
+for a \emph{fixed} circuit (R1CS instance), and let $\tau,\alpha,\beta,\gamma,\delta \xleftarrow{\$}\mathbb{F}$
+be the trapdoors used in setup.  The Groth16 CRS (split into proving and verification material)
+contains group encodings of \emph{evaluations that depend on these polynomials at the hidden point $\tau$}.
+Schematic examples (omitting routine powers of $\tau$ and degree bounds) include:
+\[
+\text{VK:}\quad 
+[\alpha] \in \mathbb{G}_1,\; [\beta]\in \mathbb{G}_2,\; [\gamma]\in \mathbb{G}_2,\; [\delta]\in \mathbb{G}_2,\;
+\text{and}\;
+\mathrm{IC}_j \;=\; \Big[\tfrac{\beta A_j(\tau)+\alpha B_j(\tau)+C_j(\tau)}{\gamma}\Big]\in\mathbb{G}_1,
+\]
+for $j=0,\dots,\ell$ (public-input selectors), and in the proving key,
+\[
+\big\{[A_i(\tau)]\in\mathbb{G}_1,\; [B_i(\tau)]\in\mathbb{G}_2,\; [C_i(\tau)]\in\mathbb{G}_1,\;
+\Big[\tfrac{\beta A_i(\tau)+\alpha B_i(\tau)+C_i(\tau)}{\delta}\Big]\in\mathbb{G}_1\big\}_{i=0}^n,
+\]
+together with encodings of $[1],[\tau],\ldots,[\tau^d]$ (for the relevant degree $d$).
+
+Crucially, these CRS elements \emph{embed the specific polynomials of this circuit} via the values
+$A_i(\tau),B_i(\tau),C_i(\tau)$ and their linear combinations with $\alpha,\beta,\gamma,\delta$.
+If one changes the circuit to a different instance with selector families
+$\{A'_i,B'_i,C'_i\}$, then the previously published encodings no longer match:
+\[
+\mathrm{IC}'_j \;=\; \Big[\tfrac{\beta A'_j(\tau)+\alpha B'_j(\tau)+C'_j(\tau)}{\gamma}\Big] \;\neq\; \mathrm{IC}_j
+\quad\text{in general,}
+\]
+and the pairing equation used in verification will not hold for the new circuit.
+Therefore a fresh trusted setup (new CRS tied to $\{A'_i,B'_i,C'_i\}$) is required.
+
+In short, Groth16’s CRS is \emph{circuit-/QAP-specific} because it contains group elements
+that are linear combinations of the circuit’s selector polynomials evaluated at the hidden point $\tau$.
+This contrasts with universal/updatable-CRS schemes (e.g., Plonk/Marlin), where the CRS
+does not embed circuit-specific selector evaluations and can be reused across many circuits.
+\end{remark}
+
+
+\myspace
+
+\begin{remark}[On the role of $\alpha,\beta,\gamma,\delta$]
+The trapdoor elements $\alpha,\beta$ are used in the CRS to tie the 
+polynomials $A,B,C$ together in the final pairing equation, ensuring 
+the prover cannot manipulate them independently.  
+The elements $\gamma,\delta$ serve a different purpose: they enforce 
+knowledge soundness and provide slots for blinding, so that the proof 
+reveals nothing about the witness beyond the statement’s validity.
+\end{remark}
+
+\myspace
+
+\begin{remark}[Succinctness]
+A Groth16 proof consists of only three group elements, regardless of 
+the circuit size.  
+Verification requires a constant number of pairings, which makes 
+Groth16 one of the most efficient SNARKs in terms of proof size and 
+verification complexity.
+\end{remark}
+
+
+\paragraph{Completeness}
+If the prover follows the protocol honestly with a satisfying witness $\mathbf{z}$, 
+then the QAP divisibility condition
+\[
+A(X) \cdot B(X) - C(X) = H(X) \cdot T(X)
+\]
+holds.  
+Since the prover evaluates these polynomials at $\tau$ consistently, 
+the commitments $\pi_A, \pi_B, \pi_C$ satisfy the pairing equation used in verification.  
+Thus the verifier always accepts an honest proof.
+
+\paragraph{Knowledge Soundness}
+Suppose a malicious prover produces a proof $\pi$ that passes verification.  
+By the structure of the pairing equation, this implies that the committed values satisfy
+\[
+A(\tau) \cdot B(\tau) - C(\tau) = H(\tau) \cdot T(\tau)
+\]
+for some polynomial $H(X)$.  
+Since $\tau$ is chosen randomly during setup and hidden in the SRS, the prover cannot force this equality to hold at $\tau$ without ensuring that the divisibility condition holds as a polynomial identity.  
+Therefore, if a prover can produce valid proofs with non-negligible probability, there exists an efficient extractor that, given oracle access to the prover, can extract a valid witness $\mathbf{z}$ for the R1CS instance.  
+This establishes the *knowledge soundness* of Groth16.
+
+\paragraph{Zero-Knowledge}
+To ensure zero-knowledge, the prover randomizes the proof with fresh blinding terms during the commitment phase.  
+Concretely, the prover adds random multiples of $\delta$ (and related trapdoor elements) when forming 
+$\pi_A, \pi_B, \pi_C$.  
+These randomizers hide any dependence on the witness beyond what is revealed through the public inputs.  
+
+Formally, one can construct a simulator $\mathsf{Sim}$ that, given only the verification key and the public inputs, 
+samples random blinding values and outputs a simulated proof $\pi^*$ distributed identically to 
+a real proof.  
+Hence the verifier learns nothing about the witness $\mathbf{z}$ beyond the validity of the statement.
+
+\paragraph{Succinctness.}
+A Groth16 proof consists of only three group elements $(\pi_A,\pi_B,\pi_C)$, 
+independent of the circuit size. 
+Verification requires a constant number of pairings, regardless of the 
+circuit’s complexity, making Groth16 one of the most efficient known 
+SNARK constructions in terms of both proof size and verification cost.
+
+\subsubsection{PLONK}
+
+PLONK encodes circuits using a \emph{universal arithmetization} based on 
+selector and permutation polynomials, rather than circuit-specific QAPs. 
+Let $n$ be the number of gates in the circuit and let $H \subset \mathbb{F}$ 
+be a multiplicative subgroup of size $n$ with vanishing polynomial
+\[
+Z_H(X) = \prod_{\omega \in H} (X - \omega).
+\]
+
+The prover represents the witness with three polynomials 
+$a(X), b(X), c(X)$ such that for every $\omega \in H$,
+\[
+a(\omega), b(\omega), c(\omega)
+\]
+are the left, right, and output wire values at gate $\omega$.
+
+Each gate constraint is encoded via \emph{selector polynomials} 
+$q_L(X), q_R(X), q_O(X), q_M(X), q_C(X)$, fixed by the circuit, such that 
+for all $\omega \in H$,
+\[
+q_L(\omega)\,a(\omega) \;+\; q_R(\omega)\,b(\omega) \;+\;
+q_O(\omega)\,c(\omega) \;+\; q_M(\omega)\,a(\omega)b(\omega) \;+\; q_C(\omega) \;=\; 0.
+\]
+
+Equivalently, the constraint polynomial
+\[
+C(X) := q_L(X)a(X) \;+\; q_R(X)b(X) \;+\; q_O(X)c(X) \;+\; q_M(X)a(X)b(X) \;+\; q_C(X)
+\]
+must vanish on all of $H$, i.e.
+\[
+Z_H(X) \;\big|\; C(X).
+\]
+
+To enforce \emph{copy constraints}, PLONK uses a \emph{permutation argument}.
+Let $\sigma_a(X), \sigma_b(X), \sigma_c(X)$ be fixed permutation polynomials encoding how 
+wires are connected across gates. The prover constructs the \emph{grand product polynomial} $Z(X)$ with:
+\[
+Z(\omega_{i+1}) = Z(\omega_i)\,\frac{a(\omega_i) + \beta \omega_i + \gamma}
+                                   {a(\sigma_a(\omega_i)) + \beta \sigma_a(\omega_i) + \gamma}
+                                   \cdot
+                                   \frac{b(\omega_i) + \beta \omega_i + \gamma}
+                                   {b(\sigma_b(\omega_i)) + \beta \sigma_b(\omega_i) + \gamma}
+                                   \cdot
+                                   \frac{c(\omega_i) + \beta \omega_i + \gamma}
+                                   {c(\sigma_c(\omega_i)) + \beta \sigma_c(\omega_i) + \gamma},
+\]
+starting from $Z(\omega_0) = 1$. This enforces that the tuples 
+$(a(\omega),b(\omega),c(\omega))$ are consistent under the wiring permutation.
+
+Finally, the prover combines all constraints into a single \emph{quotient polynomial}:
+\[
+Q(X) = \frac{C(X) \;+\; \text{(permutation checks)}}{Z_H(X)},
+\]
+which must have degree at most $d = O(n)$ if all constraints are satisfied.
+
+The IOP thus reduces to proving:
+1. $\deg a,b,c,Z \leq d$,  
+2. $Z(\omega_0) = 1$,  
+3. $Z(X)$ satisfies the grand product relation,  
+4. $Q(X)$ is a polynomial of degree $\leq d$.  
+
+\subsubsection*{IOP Description}
+
+\paragraph{Trace Table and Wire Polynomials}  
+PLONK organizes a computation as an R1CS and encodes it using a \emph{trace table}, similar to Groth16.  
+However, instead of working directly with QAP polynomials, PLONK introduces \emph{wiring polynomials} to represent the values on each “wire” of the circuit.  
+
+Suppose the circuit has \(n\) gates and three wires per gate (left, right, and output).  
+PLONK defines three polynomials \(a(X), b(X), c(X) \in \mathbb{F}[X]\) of degree less than \(n\), where the evaluation at a point \(\tau_j\) encodes the values of the left, right, and output wires of the \(j\)-th gate:  
+\[
+a(\tau_j) = \text{left wire of gate } j, \quad
+b(\tau_j) = \text{right wire of gate } j, \quad
+c(\tau_j) = \text{output wire of gate } j.
+\]
+
+\paragraph{Correctness Conditions}
+For the table to represent a valid computation, the following checks must hold:
+\begin{enumerate}
+  \item \textbf{Input check:} The initial rows encode the given public inputs correctly.
+  \item \textbf{Gate check:} Each gate’s output is computed correctly from its inputs (e.g., addition, multiplication).
+  \item \textbf{Wiring check:} The wiring of the circuit is respected; i.e., whenever an input to a gate is supposed to be a copy of some previous output, the table entries agree.
+  \item \textbf{Output check:} The final designated output gate equals the claimed value (e.g., $z_5 = 0$ in the above example).
+\end{enumerate}
+
+\paragraph{Selector Polynomials and Gate Constraints}  
+For each gate, PLONK defines a low-degree polynomial \(q_j(X)\) that encodes the gate’s operation.  
+For instance, for a multiplication gate, the constraint is
+\[
+a(\tau_j) \cdot b(\tau_j) - c(\tau_j) = 0.
+\]  \\
+PLONK introduces \emph{selector polynomials} $q_M(X)$, $q_L(X)$, $q_R(X)$, $q_O(X)$, $q_C(X)$ to encode the circuit constraints: multiplication, linear terms, and constants.  
+At each gate \(j\), the constraint is
+\[
+q_M(\tau_j) \cdot a(\tau_j) \cdot b(\tau_j) + q_L(\tau_j) \cdot a(\tau_j) + q_R(\tau_j) \cdot b(\tau_j) + q_O(\tau_j) \cdot c(\tau_j) + q_C(\tau_j) = 0.
+\]  
+This single linear combination allows PLONK to express any arithmetic gate type uniformly.  
+Interpolating these values across all gates gives a single polynomial identity over the domain:
+\[
+Q(X) := q_M(X) \cdot a(X) \cdot b(X) + q_L(X) \cdot a(X) + q_R(X) \cdot b(X) + q_O(X) \cdot c(X) + q_C(X) \equiv 0 \mod T(X),
+\]
+where \(T(X) = \prod_{j=1}^n (X-\tau_j)\) is the vanishing polynomial of the evaluation domain.
+
+\paragraph{Permutation (Copy) Argument}  
+In addition to enforcing local gate constraints, PLONK must also ensure that wires referencing the same variable (across different gates) are assigned the same value.  
+For example, if the output of one gate is reused as the input to another, these values must be consistent.  
+This is called the \emph{wiring constraint}.  
+
+\medskip
+PLONK enforces wiring consistency via a \emph{permutation argument}.  
+Let the evaluation domain be \(H = \{\tau_1,\ldots,\tau_n\}\).  
+Each row of the trace consists of three wire values: left, right, and output.  
+We index these wires as positions \([3n]\).  
+The wiring of the circuit induces a permutation
+\[
+\sigma: [3n] \to [3n],
+\]
+which maps each wire position to the wire position of the variable it is constrained to equal.  
+For example, if the left input of row \(i\) is the same variable as the output of row \(j\), then \(\sigma(i_\text{left}) = j_\text{out}\).  
+
+\medskip
+To check consistency, PLONK uses a \emph{grand product polynomial} \(Z(X)\).  
+Intuitively, \(Z(X)\) accumulates a running product that compares wire values against their permuted copies.  
+Let \(\beta,\gamma \in \mathbb{F}\) be verifier-supplied random challenges.  
+For each row \(j\), define the multiplicative update:
+\[
+Z(\tau_{j+1}) = Z(\tau_j) \cdot
+\frac{a(\tau_j) + \beta \cdot \sigma_a(\tau_j) + \gamma}
+     {a(\tau_j) + \beta \cdot \tau_j + \gamma}
+\cdot
+\frac{b(\tau_j) + \beta \cdot \sigma_b(\tau_j) + \gamma}
+     {b(\tau_j) + \beta \cdot \tau_j + \gamma}
+\cdot
+\frac{c(\tau_j) + \beta \cdot \sigma_c(\tau_j) + \gamma}
+     {c(\tau_j) + \beta \cdot \tau_j + \gamma},
+\]
+with initial condition \(Z(\tau_0)=1\).  
+Here, \(\sigma_a,\sigma_b,\sigma_c\) are the images of the left, right, and output wires under the permutation \(\sigma\).  
+
+\medskip
+The key idea is that, if all copy constraints are satisfied, then the product telescopes and we obtain the invariant
+\[
+Z(\tau_n) = 1.
+\]  
+If any wire assignment violates a copy constraint, then some factor in the numerator and denominator will not cancel, and the product deviates from 1.  
+
+\medskip
+\paragraph{Verifier’s Check.}  
+The verifier does not check all intermediate values of \(Z(\tau_j)\) directly.  
+Instead, the prover commits to the polynomial \(Z(X)\).  
+The verifier samples a random evaluation point \(\zeta \notin H\) and requests the prover to open \(Z(\zeta)\).  
+Consistency of the permutation argument is then reduced to checking the polynomial identity
+\[
+Z(X) \cdot \big(a(X)+\beta X+\gamma\big)\big(b(X)+\beta X+\gamma\big)\big(c(X)+\beta X+\gamma\big) \;=\;
+Z(\sigma(X)) \cdot \big(a(X)+\beta\sigma_a(X)+\gamma\big)\big(b(X)+\beta\sigma_b(X)+\gamma\big)\big(c(X)+\beta\sigma_c(X)+\gamma\big),
+\]
+which holds over all \(X \in H\).  
+Since the prover cannot predict the verifier’s challenge \(\zeta\), the probability of cheating without detection is negligible.
+
+\medskip
+Thus, the permutation argument ensures that all wire values are consistent with the wiring of the circuit, while requiring only succinct commitments and a few evaluations.
+
+
+\paragraph{Quotient Polynomial and Consolidated Identity}  
+PLONK combines all gate and permutation constraints into a single \emph{quotient polynomial} \(Q(X)\), defined such that
+\[
+Q(X) = \frac{a(X) \cdot b(X) - c(X) + \text{copy terms} + \text{public input terms}}{T(X)}.
+\]  
+The key property is that \(Q(X)\) has degree at most \(n\), and its vanishing modulo \(T(X)\) ensures all circuit and wiring constraints are satisfied simultaneously.
+
+\medskip
+\paragraph{Why does the product telescope?}  
+Fix a row \(j\).  
+The update rule for \(Z(\tau_{j+1})\) introduces a ratio with a numerator term
+\[
+a(\tau_j) + \beta \sigma_a(\tau_j) + \gamma
+\]
+and a denominator term
+\[
+a(\tau_j) + \beta \tau_j + \gamma.
+\]
+
+Suppose the wiring permutation is respected, i.e., the variable sitting in position \(a(\tau_j)\) is \emph{the same} as the variable assigned to position \(\sigma_a(\tau_j)\).  
+Then across all rows, every wire value appears exactly once in a denominator (at its original location) and exactly once in a numerator (at its permuted location).  
+As a result, the product
+\[
+\prod_{j=1}^n \frac{a(\tau_j) + \beta \sigma_a(\tau_j) + \gamma}{a(\tau_j) + \beta \tau_j + \gamma}
+\]
+cancels perfectly, since each denominator term is matched by an identical numerator term from another row.  
+The same holds for the \(b\) and \(c\) wires.  
+
+Thus, if all copy constraints are satisfied, we obtain
+\[
+Z(\tau_n) = Z(\tau_0) \cdot \prod_{j=1}^n \frac{\cdots}{\cdots} = 1.
+\]
+
+\medskip
+On the other hand, if some copy constraint is violated, then there exists at least one wire whose value differs from its supposed copy.  
+In that case, the corresponding denominator term and numerator term are \emph{not} equal, and cancellation fails.  
+The grand product then deviates from 1, i.e., \(Z(\tau_n) \neq 1\).  
+
+\medskip
+This telescoping property is what certifies that the prover’s assignment is consistent with the permutation constraints.
+
+
+\subsubsection*{Setup}
+
+PLONK uses a universal and updatable structured reference string (SRS) based on the KZG polynomial commitment scheme.  
+
+The SRS encodes powers of a secret trapdoor $\tau$ in a bilinear group:
+\[
+\{[1],[\tau],[\tau^2],\dots,[\tau^d]\} \subset \mathbb{G}_1
+\]  
+sufficient to commit to polynomials of degree at most $d$, independent of any particular circuit. Unlike Groth16, the SRS is circuit-independent; the same CRS can be reused for any circuit up to size $d$.
+
+The KZG commitments allow the prover to commit to polynomials encoding the witness and the grand product, and later open these commitments at random points chosen by the verifier to check consistency.
+
+\myspace
+
+\begin{protocol}[PLONK]
+Let $C$ be a circuit of size $m$ with witness vector $\mathbf{z}$, permutation $\sigma$, and public inputs $\mathbf{x}$.  
+Let $\mathcal{S}$ be the universal KZG SRS over a sufficiently large domain.
+
+\begin{enumerate}
+    \item \textbf{Prover polynomial construction:}  
+    Construct polynomials encoding the witness ($A(X),B(X),C(X)$), the selector polynomials (gate constraints), and the grand product polynomial $Z(X)$ enforcing wiring.
+    
+    \item \textbf{Commitment:}  
+    Commit to each polynomial using the KZG SRS: 
+    \[
+    \mathsf{Com}(A), \mathsf{Com}(B), \mathsf{Com}(C), \mathsf{Com}(Z), \dots
+    \]
+    
+    \item \textbf{Challenge sampling (Fiat–Shamir):}  
+    Convert the interactive IOP into a non-interactive proof by deriving random challenges $u,v,\dots$ from the commitments via a hash function.
+    
+    \item \textbf{Polynomial evaluations and openings:}  
+    Prover opens committed polynomials at challenge points to check:
+    \begin{enumerate}
+        \item Gate constraints are satisfied,
+        \item Wiring is correct via the grand product polynomial,
+        \item Public inputs are correctly embedded.
+    \end{enumerate}
+    
+    \item \textbf{Verification:}  
+    The verifier checks the KZG openings and pairing equations to ensure all polynomial relations hold.
+\end{enumerate}
+The resulting proof size is a small constant number of group elements, independent of circuit size.
+\end{protocol}
+
+\myspace
+
+\paragraph{Completeness}
+If the prover follows the protocol honestly with a valid witness $\mathbf{z}$, 
+then the committed polynomials $A(X),B(X),C(X)$ satisfy all gate constraints, 
+the grand product polynomial $Z(X)$ encodes the wiring correctly, 
+and the public input polynomial matches the claimed inputs.  
+All KZG openings at verifier challenge points will check out, so the verifier accepts.
+
+\paragraph{Knowledge Soundness}
+The KZG commitment scheme is binding under the discrete logarithm assumption.  
+Hence, if a malicious prover produces a proof that passes verification, 
+there exists a unique set of polynomials consistent with the commitments.  
+Because the grand product polynomial enforces the wiring and the gate constraints 
+are verified at random evaluation points, this implies the prover must know 
+a witness $\mathbf{z}$ satisfying the circuit.  
+This gives a **proof of knowledge** guarantee, analogous to special soundness in $\Sigma$-protocols.
+
+\paragraph{Zero-Knowledge}
+To achieve zero-knowledge, the prover adds random blinding terms to the 
+polynomials before committing via KZG.  
+These blinding factors hide any information about the witness beyond what is revealed 
+by the public inputs.  
+A simulator can produce commitments and polynomial openings at verifier challenges 
+without knowledge of the witness, showing that the verifier learns nothing extra.
+
+\paragraph{Succinctness}
+PLONK proofs consist of only a few group elements (typically ~4–5 in practice), 
+independent of the size of the circuit.  
+Verification requires a constant number of pairings and KZG openings, 
+regardless of the circuit complexity.  
+This makes PLONK a succinct and highly practical SNARK construction.
+
+
+\subsubsection{Marlin}
+
+Marlin is a universal and updatable SNARK
+that builds on the IOP+PCS paradigm. 
+It achieves succinct proofs and efficient verification over pairing-friendly curves, 
+while supporting arbitrary circuits via a universal SRS. 
+Compared to Groth16, Marlin avoids the need for circuit-specific preprocessing, 
+and compared to PLONK, it offers a more modular design 
+with simpler constraint encoding. 
+
+\subsubsection*{Arithmetization}
+
+We work over a finite field $\mathbb{F}$.
+
+\begin{itemize}
+    \item Let $H \subseteq \mathbb{F}$ be a multiplicative subgroup of size $n$ (the row domain).
+    \item Let $K \subseteq \mathbb{F}$ be a subgroup of size $m$ (the index domain).
+    \item Define the vanishing polynomial of a set $S$ as 
+    \[
+        v_S(X) = \prod_{\gamma \in S} (X - \gamma).
+    \]
+    \item For $S \subseteq \mathbb{F}$, define 
+    \[
+        u_S(X,Y) = \frac{v_S(X) - v_S(Y)}{X-Y}.
+    \]
+\end{itemize}
+
+An R1CS instance consists of sparse matrices $(A,B,C) \in \mathbb{F}^{H \times H}$ and a vector $z \in \mathbb{F}^H$ such that
+\[
+    (Az) \circ (Bz) = Cz.
+\]
+Let $\hat f$ denote the unique degree-$(<|H|)$ interpolation of $f : H \to \mathbb{F}$.
+
+For a sparse matrix $M$, the indexer defines maps $\mathrm{row}, \mathrm{col}:K\to H$ and $\mathrm{val}:K\to \mathbb{F}$ describing the nonzero entries. Their interpolants 
+\[
+    \widehat{\mathrm{row}}, \;\widehat{\mathrm{col}}, \;\widehat{\mathrm{val}}
+\]
+are univariate polynomials of degree $<|K|$. The low-degree extension of $M$ is:
+\[
+    \hat M(X,Y) = \sum_{\kappa \in K} 
+        \frac{v_H(X)}{X-\widehat{\mathrm{row}}(\kappa)} \cdot
+        \frac{v_H(Y)}{Y-\widehat{\mathrm{col}}(\kappa)} \cdot
+        \widehat{\mathrm{val}}(\kappa).
+\]
+
+
+\subsubsection*{Protocol Intuition}
+
+The proof system reduces to two types of checks:
+\begin{enumerate}
+    \item \textbf{Hadamard check:} ensures $(Az)[h](Bz)[h] = (Cz)[h]$ for all $h \in H$. This is enforced by testing whether 
+    \[
+        p(X) = \hat z_A(X)\hat z_B(X) - \hat z_C(X)
+    \]
+    is divisible by $v_H(X)$.
+    \item \textbf{Lincheck:} ensures that $\hat z_M$ is consistent with $Mz$ for $M \in \{A,B,C\}$. This is achieved via a two-round sumcheck:
+    \begin{itemize}
+        \item The verifier folds the $H$-sum into a single evaluation at a random point $\beta_1$.
+        \item The holographic encoding $\hat M$ is then verified via the index polynomials at a random $(\beta_2,\beta_1)$.
+    \end{itemize}
+\end{enumerate}
+
+Polynomial commitments (KZG) enforce degree bounds and allow succinct opening proofs at the verifier’s sampled points.
+
+
+\subsubsection*{Setup}
+
+\begin{itemize}
+    \item The \emph{indexer} commits to $\widehat{\mathrm{row}}_M,\widehat{\mathrm{col}}_M,\widehat{\mathrm{val}}_M$ for each $M \in \{A,B,C\}$.
+    \item The \emph{prover} commits to $\hat z,\hat z_A,\hat z_B,\hat z_C$ and to auxiliary polynomials arising in quotient and sumcheck steps.
+    \item The \emph{verifier} samples random challenges $(\alpha,\beta,\beta_1,\beta_2)$ and verifies the identities at those points.
+\end{itemize}
+
+
+\begin{protocol}[Marlin AHP for R1CS]
+
+\textbf{Input:} R1CS instance $(A,B,C)$, public input $x$, witness $w$.
+
+\begin{enumerate}
+    \item \textbf{Commitments:} 
+    \begin{itemize}
+        \item Prover commits to $\hat z,\hat z_A,\hat z_B,\hat z_C$.
+        \item Indexer provides commitments to $\widehat{\mathrm{row}}_M, \widehat{\mathrm{col}}_M, \widehat{\mathrm{val}}_M$ for $M \in \{A,B,C\}$.
+    \end{itemize}
+    
+    \item \textbf{Hadamard Check:} 
+    \begin{itemize}
+        \item Prover computes $t(X)$ such that 
+        \[
+            \hat z_A(X)\hat z_B(X) - \hat z_C(X) = t(X)\cdot v_H(X).
+        \]
+        \item Verifier samples $\beta$ and checks
+        \[
+            \hat z_A(\beta)\hat z_B(\beta) - \hat z_C(\beta) \stackrel{?}{=} t(\beta)v_H(\beta).
+        \]
+    \end{itemize}
+    
+    \item \textbf{Lincheck for each $M \in \{A,B,C\}$:}
+    \begin{itemize}
+        \item Verifier samples $\alpha$, defines $q_1(X)$ as
+        \[
+            q_1(X) = r(\alpha,X)\hat z(X) - r_M(\alpha,X)\hat z_M(X).
+        \]
+        \item Prover demonstrates $\sum_{h\in H} q_1(h)=0$ by sending $g_1,h_1$ such that
+        \[
+            q_1(X) = h_1(X)u_H(X,\beta_1) + Xg_1(X),
+        \]
+        checked at a random $\beta_1$.
+        \item Verifier samples $\beta_2$ and checks holographic consistency:
+        \[
+            \hat M(\beta_2,\beta_1) \stackrel{?}{=} 
+            \sum_{\kappa\in K} \frac{v_H(\beta_2)v_H(\beta_1)}
+            {(\beta_2-\widehat{\mathrm{row}}(\kappa))(\beta_1-\widehat{\mathrm{col}}(\kappa))}
+            \cdot \widehat{\mathrm{val}}(\kappa).
+        \]
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Output:} Accept if all checks pass; otherwise reject.
+
+\end{protocol}
+
+\paragraph{Completeness}
+
+If the prover holds a valid witness $z$ such that $(Az)\circ(Bz) = Cz$, then:
+\begin{itemize}
+    \item The Hadamard check passes since $p(X) = \hat z_A(X)\hat z_B(X) - \hat z_C(X)$ vanishes on $H$, hence is exactly divisible by $v_H(X)$, so identity (3) holds.
+    \item For each $M \in \{A,B,C\}$, the lincheck passes since $\hat z_M$ is the interpolation of $Mz$, and thus the folded relation $q_1(X)$ has zero sum over $H$ and admits a valid decomposition (6).
+    \item The holographic evaluation of $\hat M$ at $(\beta_2,\beta_1)$ is consistent with the committed index polynomials by construction.
+\end{itemize}
+Therefore an honest prover always convinces the verifier.
+
+
+\paragraph{Soundness}
+
+Suppose the prover commits to polynomials that are not consistent with any valid witness.
+\begin{itemize}
+    \item If the Hadamard relation fails for some row of $H$, then $p(X)$ is a nonzero polynomial not divisible by $v_H(X)$. Equation (4) will fail except with probability at most $\deg(p)/|\mathbb{F}| = O(|H|/|\mathbb{F}|)$ over the verifier’s random choice of $\beta$.
+    \item If $\hat z_M \neq \widehat{Mz}$ for some $M$, then $q_1(X)$ has nonzero sum over $H$, and the sumcheck decomposition (6) cannot hold identically. The probability of passing a random check at $\beta_1$ is at most $O(|H|/|\mathbb{F}|)$.
+    \item If the prover tries to forge $\hat M$, the holographic check (8)--(9) reduces to verifying a polynomial identity on $K$; a false statement passes with probability at most $O(|K|/|\mathbb{F}|)$.
+\end{itemize}
+Overall, the soundness error is negligible if $|\mathbb{F}| \gg |H|,|K|$.
+
+
+\paragraph{Zero-Knowledge}
+
+Marlin is compiled with a polynomial commitment scheme (e.g., KZG) augmented with \emph{random masking} of committed polynomials:
+\begin{itemize}
+    \item The prover blinds $\hat z$ and related polynomials with random multiples of $v_H$ before committing.
+    \item The auxiliary polynomials from the lincheck and quotient steps are similarly randomized.
+\end{itemize}
+These masks ensure that committed polynomials are information-theoretically hiding, and that all verifier queries reveal only evaluations at random points masked by fresh randomness. As a result, the verifier’s view can be efficiently simulated given only the public input and the statement validity, ensuring zero-knowledge.
+
+
+\paragraph{Succinctness}
+
+The verifier’s work is logarithmic in the circuit size:
+\begin{itemize}
+    \item It samples a constant number of random field elements $(\alpha,\beta,\beta_1,\beta_2)$.
+    \item It verifies a constant number of polynomial identities at those points.
+    \item All heavy work (matrix-vector multiplications, polynomial interpolation) is done by the prover.
+\end{itemize}
+Commitments and openings are of constant size (a few group elements under KZG), and the verifier’s checks reduce to a constant number of pairing evaluations. Thus the proof is succinct: verifier time is polylogarithmic in $n$, while the proof size and verification cost are independent of the circuit size.
+
+
+% \subsection{Transparent SNARKs \& STARKs}
+
+% \subsubsection{GKR Protocol}
+
+% \subsubsection{Spartan}
+
+% \subsubsection{STARKs}
+
+% \subsubsection*{Example: Aurora}
+
+% \subsection{Recursive SNARKs}
+
+% \subsubsection{Halo / Halo2}
+
+% \subsubsection{Nova / SuperNova}

@@ -1,0 +1,57 @@
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{tocloft}
+
+% TOC formatting (dotted leaders)
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+
+\newcommand{\myspace}{\vspace{12pt}}
+
+\newtheoremstyle{italicexample}  % name
+  {}                             % space above
+  {}                             % space below
+  {\itshape}                     % body font
+  {}                             % indent amount
+  {\bfseries}                    % theorem head font
+  {.}                            % punctuation after theorem head
+  { }                            % space after theorem head
+  {}                             % theorem head spec
+
+\theoremstyle{italicexample}
+\newtheorem{example}{Example}[section]
+
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+% \newtheorem{example}{Example}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{corollary}{Corollary}[section]
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newenvironment{protocol}[1][]{%
+  \begin{tcolorbox}[
+    colback=white,
+    colframe=black,
+    boxrule=0.5pt,
+    sharp corners,
+    breakable,
+    width=\textwidth,
+    left=5pt,
+    right=5pt,
+    top=5pt,
+    bottom=5pt
+  ]
+  \textbf{Description of Protocol}\par\vspace{0.5em} 
+}{
+  \end{tcolorbox}
+}
+

@@ -1,0 +1,400 @@
+\section{Commitment Schemes}
+
+\begin{definition}[Commitment Scheme]
+A \emph{commitment scheme} for a message space $\mathcal{M}$ is a pair of probabilistic polynomial-time algorithms $(\mathsf{Com}, \mathsf{Ver})$ where:
+\begin{itemize}
+    \item $\mathsf{Com}(m; r) \to c$: produces a commitment $c$ for a message $m \in \mathcal{M}$ (using randomness $r$)
+    \item $\mathsf{Ver}(m,c,r) \to$ \emph{accept} or \emph{reject}: outputs \emph{accept} if and only if $c \stackrel{?}{=} \mathsf{Com}(m;r)$ (and \emph{reject} otherwise)
+\end{itemize}
+
+\noindent Such a scheme must satisfy the security properties of \emph{binding} and \emph{hiding}.
+\end{definition}
+
+\myspace
+
+\begin{definition}[Binding]
+Let $\mathsf{Com}$ be a commitment algorithm. Then:
+\begin{itemize}
+    \item \emph{Perfect Binding:} For all messages $m_0 \neq m_1$ with any randomness $r_0,r_1$,
+    \[
+    c = \mathsf{Com}(m_0 ;r_0) \implies \mathsf{Ver}(m_1,r_1,c) = \text{\emph{reject}}
+    \]
+    \item \emph{Statistical Binding:} For all (even unbounded) adversaries $\mathcal{A}$, \[
+    \Pr\Big[
+    (m_0, r_0, m_1, r_1, c) \gets \mathcal{A}(1^\lambda) : m_0 \neq m_1 \text{ and } 
+    \mathsf{Ver}(m_0, r_0, c) = \mathsf{Ver}(m_1, r_1, c) = \text{\emph{accept}}
+    \Big] \le \mathrm{negl}(\lambda)
+    \]
+    \item \emph{Computational Binding:} For all probabilistic polynomial-time adversaries $\mathcal{A}$, \[
+    \Pr\Big[
+    (m_0, r_0, m_1, r_1, c) \gets \mathcal{A}(1^\lambda) : m_0 \neq m_1 \text{ and } 
+    \mathsf{Ver}(m_0, r_0, c) = \mathsf{Ver}(m_1, r_1, c) = \text{\emph{accept}}
+    \Big] \le \mathrm{negl}(\lambda)
+    \]
+\end{itemize}
+
+\noindent Intuitively: It should not be possible to change the committed value.
+\end{definition} 
+
+\myspace
+
+\begin{definition}[Hiding]
+Let $\mathsf{Com}$ be a commitment algorithm (with randomness space $\mathcal{R}$). Then:
+\begin{itemize}
+    \item \emph{Perfect Hiding:} For all messages $m_0, m_1$ with any randomness $r \in \mathcal{R}$,
+    \[
+    \mathsf{Com}(m_0; r) \overset{d}{=} \mathsf{Com}(m_1; r),
+    \]
+    
+    \item \emph{Statistical Hiding:} For all (even unbounded) distinguishers $\mathcal{D}$,
+    \[
+    \Big| \Pr_{r \gets \mathcal{R}}[\mathcal{D}(\mathsf{Com}(m_0; r)) = 1] - 
+    \Pr_{r \gets \mathcal{R}}[\mathcal{D}(\mathsf{Com}(m_1; r)) = 1] \Big| \le \mathrm{negl}(\lambda),
+    \]
+    
+    \item \emph{Computational Hiding:} For all probabilistic polynomial-time distinguishers $\mathcal{D}$,
+    \[
+    \Big| \Pr_{r \gets \mathcal{R}}[\mathcal{D}(\mathsf{Com}(m_0; r)) = 1] - 
+    \Pr_{r \gets \mathcal{R}}[\mathcal{D}(\mathsf{Com}(m_1; r)) = 1] \Big| \le \mathrm{negl}(\lambda).
+    \]
+\end{itemize}
+
+\noindent Intuitively: The commitment should not reveal anything about the committed value.
+\end{definition}
+
+\myspace
+
+\begin{remark}
+If a commitment scheme is \emph{perfectly or statistically binding}, then it can be at most \emph{computationally hiding}, since perfect/statistical binding requires that the committed value is essentially fixed and therefore some information about the message may be leaked to an unbounded adversary.  
+Conversely, if a commitment scheme is \emph{perfectly or statistically hiding}, then it can be at most \emph{computationally binding}, since perfect/statistical hiding requires that multiple messages could produce the same commitment, making binding impossible to enforce against an unbounded adversary.
+\end{remark}
+
+
+\myspace
+
+\begin{example}[Hash-based Commitment with Nonce]
+Let $H : \{0,1\}^* \to \{0,1\}^\lambda$ be a collision-resistant hash function.  
+We define a commitment scheme for messages $m \in \{0,1\}^*$ as follows:
+\begin{itemize}
+    \item $\mathsf{Com}(m; r) := H(m \,\|\, r)$ (where $r$ is a random nonce)
+    \item $\mathsf{Ver}(m, r, c) := $ \emph{accept} if and only if $c = H(m \,\|\, r)$.
+\end{itemize}
+
+\paragraph{Hiding.}  
+Since $r$ is chosen uniformly at random, the commitment $c$ looks pseudorandom (assuming $H$ behaves like a random oracle). Thus, $c$ reveals no information about $m$.  
+
+\paragraph{Binding.}  
+By the collision resistance of $H$, it is infeasible to find $(m_0, r_0) \neq (m_1, r_1)$ such that
+$
+H(m_0 \,\|\, r_0) = H(m_1 \,\|\, r_1).
+$
+Thus, the sender cannot later open the commitment to a different message. 
+\end{example}
+
+\begin{remark}[Security of Hash-based Commitments]
+The hash-based scheme given above is \emph{computationally binding}, assuming the hash function $H$ is collision-resistant, 
+and \emph{computationally hiding}, assuming $H$ behaves like a random oracle.  
+In particular, it is not statistically or perfectly hiding, since an unbounded adversary could always brute-force over the randomness $r$.
+\end{remark}
+
+
+
+\subsection{Polynomial Commitment Schemes}
+
+\begin{definition}[Polynomial Commitment Scheme]
+A \emph{polynomial commitment scheme} for polynomials over a field $\mathbb{F}$ and degree bound $d$ is a tuple of probabilistic polynomial-time algorithms
+$
+(\mathsf{Com}, \mathsf{Open}, \mathsf{Ver})
+$
+where:
+
+\begin{itemize}
+    \item $\mathsf{Com}(f) \to c$:  
+   produces a commitment $c$ for a polynomial $f \in \mathbb{F}[X]$ with $\deg(f) \le d$
+    
+    \item $\mathsf{Open}(f, x) \to (y, \pi)$:  
+    outputs an evaluation $y = f(x)$ and a proof $\pi$
+    
+    \item $\mathsf{Ver}(c, x, y, \pi) \to$ \emph{accept} or \emph{reject}:  
+    outputs \emph{accept} if and only if $y = f(x)$
+\end{itemize}
+
+\noindent Again, such a scheme must satisfy the security properties of \emph{binding} and optionally \emph{hiding}. Additionally, such a scheme must satisfy the property of \emph{correctness}.
+\end{definition}
+
+\begin{definition}[Correctness]
+For any polynomial $f \in \mathbb{F}[X]$ of degree at most $d$ and for all $x \in \mathbb{F}$,
+$$
+c \leftarrow \mathsf{Com}(f) \text{ and } (y, \pi) \leftarrow \mathsf{Open}(f, x) \quad \implies \quad  \mathsf{Ver}(c, x, y, \pi) = \text{\emph{accept}}
+$$
+\end{definition}
+
+\begin{remark}[Commitments vs. Polynomial Commitments]
+A standard commitment scheme allows one to commit to a \emph{single value} $m \in \mathcal{M}$ in a way that is both binding and hiding. 
+A polynomial commitment scheme extends this idea: here the committed object is an entire polynomial $f \in \mathbb{F}[X]$, and the goal is to efficiently prove and verify claims of the form ``$f(x) = y$'' without revealing the whole polynomial.
+\end{remark}
+
+\begin{remark}[Setup Algorithms]
+Some commitment schemes (in particular, polynomial commitments such as KZG or IPA) additionally require a setup or parameter generation algorithm 
+$\mathsf{KeyGen}(1^\lambda) \to \mathsf{pp}$ 
+that outputs public parameters $\mathsf{pp}$.  
+For simplicity, we omit $\mathsf{KeyGen}$ from the abstract definition above, and assume that any necessary public parameters are fixed and available to all parties.
+\end{remark}
+
+
+
+\subsubsection{KZG}
+
+\subsubsection*{Problem Definition}
+
+Suppose we are given a polynomial $f(X) \in \mathbb{F}[X]$ of degree at most $d$, where $\mathbb{F}$ is a finite field.  
+The goal is to allow a prover $\mathcal{P}$ to commit to $f$ compactly and later convince a verifier $\mathcal{V}$ that $f(z)=y$ at some evaluation point $z \in \mathbb{F}$.
+
+\begin{protocol}[KZG Polynomial Commitment Scheme]
+\begin{enumerate}
+  \item \textbf{Setup:}  
+  A trusted party samples $\tau \in \mathbb{F}$ uniformly at random and publishes public parameters:
+  \[
+  \text{PP} = \{ g^{s^i} \mid i=0,1,\dots,d \}
+  \]
+  for a fixed generator $g$ of a cyclic group $\mathbb{G}$ of prime order $p$, where a bilinear pairing $e:\mathbb{G}\times \mathbb{G}\to \mathbb{G}_T$ is available.  
+  The value $\tau$ is discarded.
+
+  \item \textbf{Commit:}  
+  To commit to $f(X)=\sum_{i=0}^d a_i X^i$, compute
+  \[
+  \mathsf{Com}(f) = g^{f(s)} = \prod_{i=0}^d \big(g^{s^i}\big)^{a_i}.
+  \]
+
+  \item \textbf{Open:}  
+  To prove that $f(z)=y$, the prover computes the quotient polynomial
+  \[
+  q(X) = \frac{f(X) - y}{X-z},
+  \]
+  and outputs the proof
+  \[
+  \pi = g^{q(s)}.
+  \]
+
+  \item \textbf{Verify:}  
+  The verifier checks the pairing equation:
+  \[
+  e(\mathsf{Com}(f)/g^y, g) \stackrel{?}{=} e(\pi, g^{s-z}).
+  \]
+  Accept if the equation holds.
+\end{enumerate}
+\end{protocol}
+
+\paragraph{Correctness.}
+
+If $f(z)=y$, then $(X-z)$ divides $f(X)-y$, so $f(s)-y = q(s)\cdot(s-z)$.  
+Thus:
+\[
+e(\mathsf{Com}(f)/g^y, g) = e(g^{f(s)-y}, g) = e(g^{q(s)(s-z)}, g) = e(g^{q(s)}, g^{s-z}) = e(\pi, g^{s-z}),
+\]
+and the verification succeeds.
+
+\myspace
+
+\paragraph{Binding.}
+
+The scheme is \emph{computationally binding}.  
+If a prover could open the same commitment $\mathsf{Com}(f)$ to two different evaluations $(z,y)$ and $(z,y')$ with $y\neq y'$, this would yield a nontrivial relation among the public parameters $\{g^{s^i}\}$ and break the \emph{strong $q$-SDH assumption}.  
+Thus, except with negligible probability, $\mathcal{P}$ cannot equivocate.
+
+\begin{remark}
+KZG is \emph{perfectly binding} given the structured reference string: each polynomial $f$ maps to a unique group element $g^{f(s)}$.  
+The computational assumption ensures that $\mathcal{P}$ cannot forge different polynomials that collide under evaluation at $s$.
+\end{remark}
+
+\myspace
+
+\paragraph{Hiding.}
+
+The basic KZG commitment is \emph{not hiding}: $\mathsf{Com}(f) = g^{f(s)}$ directly reveals information about $f(s)$.  
+To obtain hiding, one can add randomness:
+\[
+\mathsf{Com}(f;r) = g^{f(s)} \cdot h^r,
+\]
+for independent generator $h$, where $r \xleftarrow{\$} \mathbb{F}$.  
+This makes the scheme \emph{perfectly hiding} while preserving binding.
+
+\begin{remark}
+The addition of a random blinding factor $h^r$ is analogous to Pedersen commitments: it ensures that the commitment leaks no information about $f$ beyond what is later revealed.
+\end{remark}
+
+
+\subsubsection{IPA-Based}
+
+\subsubsection*{Overview}
+
+The \emph{inner product argument} (IPA) is not a standalone polynomial commitment scheme, but rather a **building block** used in Bulletproofs-style constructions.  
+The idea is to commit to the coefficient vector $a = (a_0, \dots, a_{n-1})$ of a polynomial $f(X)$ and then use IPA to prove evaluation claims of the form $f(z) = y$ efficiently.  
+This achieves $O(\log n)$ communication complexity without requiring a trusted setup.
+
+---
+
+\subsubsection*{Inner Product Argument (IPA)}
+
+Suppose a prover $\mathcal{P}$ has two vectors $a, b \in \mathbb{F}^n$ and wants to convince a verifier $\mathcal{V}$ that
+\[
+c = \langle a, b \rangle = \sum_{i=1}^n a_i b_i
+\]
+without revealing the vectors themselves.  
+
+\begin{protocol}[Inner Product Argument]
+\begin{enumerate}
+  \item \textbf{Setup:}  
+  Let $G = (g_1, \dots, g_n)$ and $H = (h_1, \dots, h_n)$ be public group generators in a cyclic group $\mathbb{G}$ of prime order $q$.  
+  The prover commits to the vectors:
+  \[
+    P = \prod_{i=1}^n g_i^{a_i} \cdot h_i^{b_i} \in \mathbb{G}.
+  \]
+
+  \item \textbf{Recursive Folding:}  
+  The prover and verifier recursively reduce the vectors in $\log_2(n)$ rounds.  
+  At each round, the vectors are split into left/right halves and folded using a verifier-chosen challenge $x \in \mathbb{F}^\times$.  
+  The prover sends intermediate group elements $L, R \in \mathbb{G}$; these maintain consistency of the commitment under folding.
+
+  \item \textbf{Final Step:}  
+  After $\log n$ rounds, the vectors reduce to length 1: $a = (a_1)$, $b = (b_1)$.  
+  The prover reveals $(a_1, b_1)$, and the verifier checks both:
+  \[
+    c \stackrel{?}{=} a_1 b_1,
+  \]
+  and the consistency of all folded commitments.
+\end{enumerate}
+\end{protocol}
+
+---
+
+\paragraph{Correctness.}
+
+If the prover is honest, then at each folding step the inner product is preserved:  
+\[
+\langle a, b \rangle = \langle a_L, b_L \rangle + \langle a_R, b_R \rangle \quad \leadsto \quad \langle a', b' \rangle
+\]
+after folding with challenge $x$.  
+By induction, the final scalar check $c = a_1 b_1$ succeeds, ensuring the verifier always accepts.
+
+---
+
+\paragraph{Binding.}
+
+The scheme is \emph{computationally binding}.  
+Once $P$ is fixed, a malicious prover cannot equivocate and open it to a different inner product $c' \neq c$ without breaking the discrete logarithm assumption (or the knowledge-of-exponent assumption) in $\mathbb{G}$.  
+The recursive $L, R$ commitments enforce consistency of the opening across all rounds, preventing equivocation.
+
+---
+
+\paragraph{Hiding.}
+
+The basic IPA commitment
+\[
+P = \prod_{i=1}^n g_i^{a_i} \cdot h_i^{b_i}
+\]
+is not hiding, since $P$ may leak information about the vectors $(a, b)$.  
+To achieve hiding, one can add a blinding factor:
+\[
+P' = P \cdot u^r, \quad r \xleftarrow{\$} \mathbb{F}, \; u \in \mathbb{G}.
+\]
+This yields \emph{computationally hiding} commitments while retaining binding.
+
+---
+
+\subsubsection*{IPA in Polynomial Commitment Schemes}
+
+To commit to a polynomial $f(X) = \sum_{i=0}^{n-1} a_i X^i$, the prover commits to its coefficient vector $a = (a_0, \dots, a_{n-1})$ using the IPA commitment scheme.  
+To prove that $f(z) = y$, observe:
+\[
+f(z) = \langle a, (1, z, z^2, \dots, z^{n-1}) \rangle.
+\]
+Thus, proving $f(z) = y$ reduces to running an IPA with $a$ and $b = (1, z, \dots, z^{n-1})$.
+
+\paragraph{Properties.}
+\begin{itemize}
+  \item \textbf{Correctness:} Honest proofs always verify since the inner product argument preserves $f(z)$.  
+  \item \textbf{Binding:} Computational binding holds under the discrete logarithm assumption in $\mathbb{G}$.  
+  \item \textbf{Hiding:} Achieved by adding a Pedersen-style blinding factor.  
+  \item \textbf{Efficiency:} Communication is $O(\log n)$, making this approach scalable.  
+  \item \textbf{Setup:} No trusted setup is required (transparent setup).
+\end{itemize}
+
+\subsubsection{FRI-Based}
+
+\subsubsection*{Overview}
+
+The \emph{Fast Reed–Solomon Interactive Oracle Proof of Proximity (FRI)} protocol is the basis for modern transparent polynomial commitment schemes (e.g., STARKs).  
+FRI enables a prover to commit to a polynomial $f(X)$ of bounded degree and then prove, with logarithmic communication, that $f$ evaluates to a given value at some point $z \in \mathbb{F}$, without revealing $f$.  
+
+Unlike KZG, FRI does not rely on pairings or structured reference strings. Instead, it exploits the fact that Reed–Solomon codes have good proximity properties that can be checked via low-degree tests.  
+
+---
+
+\begin{protocol}[FRI Polynomial Commitment Scheme]
+\begin{enumerate}
+  \item \textbf{Commit:}  
+  The prover commits to the polynomial $f(X)$ by publishing evaluations of $f$ over a large evaluation domain $D \subseteq \mathbb{F}$ (via a Merkle tree).  
+  The Merkle root acts as the commitment.
+
+  \item \textbf{Low-Degree Test (LDT):}  
+  To prove that $f$ has degree at most $d$, the prover and verifier engage in the FRI protocol:  
+  the verifier samples random points and the prover responds with evaluations on successively folded polynomials.  
+  Each round halves the degree bound.
+
+  \item \textbf{Open:}  
+  To prove that $f(z) = y$, the prover reveals $f(z) = y$ along with Merkle authentication paths and FRI queries demonstrating both consistency of the evaluations and the low-degree property.
+
+  \item \textbf{Verify:}  
+  The verifier checks:
+  \begin{itemize}
+    \item Merkle proofs for consistency with the committed codeword,  
+    \item Correctness of the folding steps in the FRI protocol,  
+    \item That the claimed evaluation $f(z) = y$ is consistent with the committed codeword.  
+  \end{itemize}
+\end{enumerate}
+\end{protocol}
+
+---
+
+\paragraph{Correctness.}
+
+If the prover is honest and $f$ is a polynomial of degree at most $d$, then:
+\begin{itemize}
+  \item All Merkle openings are consistent with the original commitment,  
+  \item The recursive folding steps preserve the low-degree property,  
+  \item The revealed value $f(z) = y$ matches the committed evaluation.  
+\end{itemize}
+Thus, the verifier accepts with overwhelming probability.
+
+---
+
+\paragraph{Binding.}
+
+The scheme is \emph{computationally binding}, assuming the collision resistance of the Merkle hash function.  
+Once the Merkle root is fixed, the prover cannot later equivocate to two different polynomials (or two different evaluations at the same point) without finding a Merkle collision.  
+
+---
+
+\paragraph{Hiding.}
+
+The basic FRI-based commitment (Merkle root of evaluations) is not hiding, since the committed codeword may leak information about $f$.  
+To achieve hiding, the prover can add random blinding polynomials to the evaluation table before committing, in a manner analogous to adding randomness in Pedersen commitments.  
+This yields \emph{computationally hiding} commitments, assuming the hash function behaves as a random oracle.  
+
+---
+
+\subsubsection*{Properties}
+
+\begin{itemize}
+  \item \textbf{Correctness:} Honest proofs always verify.  
+  \item \textbf{Binding:} Computationally binding under collision resistance of the hash function.  
+  \item \textbf{Hiding:} Achieved by randomizing/blinding the evaluation table before commitment.  
+  \item \textbf{Efficiency:} Verification complexity is polylogarithmic in the degree; proof size is $O(\log^2 n)$ in practice.  
+  \item \textbf{Setup:} Transparent — requires only a hash function, no trusted setup.  
+\end{itemize}
+
+\begin{remark}
+FRI-based polynomial commitments form the foundation of STARK proof systems.  
+They are highly scalable, post-quantum secure (hash-based), and transparent, though proof sizes are larger than in pairing-based schemes such as KZG.
+\end{remark}
